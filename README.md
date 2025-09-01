@@ -10,7 +10,7 @@
 
 **Comprehensive mobile and web-based health education system that improves treatment adherence through SMS reminders, voice-to-text conversion, and visual medication guides.**
 
-[🌐 Live Demo](#) | [📖 Documentation](#) | [🚀 Quick Start](#quick-start)
+[🌐 Live Demo](https://medassist2.netlify.app/) | [📖 Documentation](#) | [🚀 Quick Start](#quick-start)
 
 </div>
 
@@ -132,12 +132,6 @@ MedAssist/
 
 2. **Install dependencies**
    ```bash
-   # Using npm
-   npm install
-
-   # Using yarn
-   yarn install
-
    # Using pnpm
    pnpm install
    ```
@@ -158,12 +152,7 @@ MedAssist/
    ```bash
    # Using npm
    npm run dev
-
-   # Using yarn
-   yarn dev
-
-   # Using pnpm
-   pnpm dev
+   
    ```
 
 5. **Open your browser**
