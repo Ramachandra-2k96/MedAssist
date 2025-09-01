@@ -4,7 +4,6 @@ import { useTheme } from "next-themes"
 import Hero from "@/components/home/hero"
 import Features from "@/components/features"
 import { TestimonialsSection } from "@/components/testimonials"
-import { NewReleasePromo } from "@/components/new-release-promo"
 import { FAQSection } from "@/components/faq-section"
 import { StickyFooter } from "@/components/sticky-footer"
 
@@ -257,9 +256,6 @@ export default function Home() {
       <div id="testimonials">
         <TestimonialsSection />
       </div>
-
-      <NewReleasePromo />
-
       {/* FAQ Section */}
       <div id="faq">
         <FAQSection />
