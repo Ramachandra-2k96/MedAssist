@@ -1,0 +1,56 @@
+"use client"
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Pill, Clock } from "lucide-react"
+
+interface Medicine {
+  name: string
+  dosage: string
+  timing: string
+  color: string
+  shape: string
+  emoji: string
+}
+
+interface MedicineScheduleProps {
+  medicines: Medicine[]
+}
+
+export function MedicineSchedule({ medicines }: MedicineScheduleProps) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Pill className="h-5 w-5" />
+          Medicine Schedule
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          {medicines.map((medicine, index) => (
+            <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+              <div className="flex items-center gap-3">
+                <div className="text-2xl">{medicine.emoji}</div>
+                <div>
+                  <h3 className="font-semibold">{medicine.name}</h3>
+                  <p className="text-sm text-muted-foreground">{medicine.dosage}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  {medicine.timing}
+                </Badge>
+                <div
+                  className="w-4 h-4 rounded-full"
+                  style={{ backgroundColor: medicine.color }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}

@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
-export default function LoginPage() {
+export default function DoctorLoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -20,11 +20,11 @@ export default function LoginPage() {
     // Simulate login process
     await new Promise((resolve) => setTimeout(resolve, 1000))
     setIsLoading(false)
-    console.log("[v0] Login attempt:", { email, password })
+    console.log("[v0] Doctor Login attempt:", { email, password })
 
     // Generate a simple hash for the dynamic route
     const hash = btoa(email).replace(/[^a-zA-Z0-9]/g, '').substring(0, 32)
-    window.location.href = `/dashboard/${hash}`
+    window.location.href = `/doctor-dashboard/${hash}`
   }
 
   return (
@@ -61,8 +61,8 @@ export default function LoginPage() {
               </div>
             </div>
           </Link>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Welcome back</h1>
-          <p className="text-muted-foreground">Sign in to your account to continue</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Doctor Login</h1>
+          <p className="text-muted-foreground">Sign in to your doctor account</p>
         </div>
 
         {/* Login Form */}

@@ -2,7 +2,9 @@
 
 import { motion } from "framer-motion"
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Heart, Pill, MessageSquare, FileText } from "lucide-react"
 
 export default function Hero() {
@@ -86,7 +88,7 @@ export default function Hero() {
               </div>
 
               {/* Get started button */}
-              <div className="flex items-center justify-center">
+              <div className="flex items-center justify-center gap-4">
                 <a href="#features">
                   <div className="group cursor-pointer border border-border bg-card gap-2 h-[60px] flex items-center p-[10px] rounded-full hover:shadow-lg transition-all">
                     <div className="border border-border bg-primary h-[40px] rounded-full flex items-center justify-center text-primary-foreground">
@@ -114,6 +116,11 @@ export default function Hero() {
                     </div>
                   </div>
                 </a>
+                <Link href="/doctor-login">
+                  <Button className="bg-secondary hover:bg-secondary/90 text-secondary-foreground font-medium py-3 px-6 rounded-full transition-colors">
+                    Doctor Login
+                  </Button>
+                </Link>
               </div>
             </motion.div>
           </div>

@@ -36,6 +36,10 @@ export default function SignupPage() {
     await new Promise((resolve) => setTimeout(resolve, 1000))
     setIsLoading(false)
     console.log("[v0] Signup attempt:", formData)
+
+    // Generate a simple hash for the dynamic route
+    const hash = btoa(formData.email).replace(/[^a-zA-Z0-9]/g, '').substring(0, 32)
+    window.location.href = `/dashboard/${hash}`
   }
 
   return (
