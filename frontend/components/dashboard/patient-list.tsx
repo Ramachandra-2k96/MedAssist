@@ -1,10 +1,14 @@
 "use client"
 
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Users, Phone, Mail } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Users, Phone, Mail, Search, Plus } from "lucide-react"
 
 interface Patient {
   id: string
@@ -19,54 +23,134 @@ interface Patient {
 interface PatientListProps {
   patients: Patient[]
   onSelectPatient: (patient: Patient) => void
+  onAddPatient?: (patient: { name: string; phone: string; email: string }) => void
 }
 
-export function PatientList({ patients, onSelectPatient }: PatientListProps) {
+export function PatientList({ patients, onSelectPatient, onAddPatient }: PatientListProps) {
+  const [searchTerm, setSearchTerm] = useState("")
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [newPatient, setNewPatient] = useState({
+    name: "",
+    phone: "",
+    email: ""
+  })
+
+  const filteredPatients = patients.filter(patient =>
+    patient.name.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
+  const handleAddPatient = () => {
+    if (onAddPatient) {
+      onAddPatient(newPatient)
+    }
+    setIsAddDialogOpen(false)
+    setNewPatient({ name: "", phone: "", email: "" })
+  }
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Users className="h-5 w-5" />
-          My Patients
+        <CardTitle className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            My Patients
+          </div>
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Patient
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add New Patient</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="name">Full Name</Label>
+                  <Input
+                    id="name"
+                    value={newPatient.name}
+                    onChange={(e) => setNewPatient({...newPatient, name: e.target.value})}
+                    placeholder="Enter patient name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="phone">Phone Number</Label>
+                  <Input
+                    id="phone"
+                    value={newPatient.phone}
+                    onChange={(e) => setNewPatient({...newPatient, phone: e.target.value})}
+                    placeholder="Enter phone number"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={newPatient.email}
+                    onChange={(e) => setNewPatient({...newPatient, email: e.target.value})}
+                    placeholder="Enter email address"
+                  />
+                </div>
+                <Button onClick={handleAddPatient} className="w-full">
+                  Add Patient
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {patients.map((patient) => (
-            <div key={patient.id} className="flex items-center justify-between p-4 border rounded-lg">
-              <div className="flex items-center gap-3">
-                <Avatar>
-                  <AvatarFallback>{patient.name.split(" ").map(n => n[0]).join("")}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <h3 className="font-semibold">{patient.name}</h3>
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Phone className="h-3 w-3" />
-                      {patient.phone}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Input
+              placeholder="Search patients by name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <div className="space-y-4">
+            {filteredPatients.map((patient) => (
+              <div key={patient.id} className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Avatar>
+                    <AvatarFallback>{patient.name.split(" ").map(n => n[0]).join("")}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <h3 className="font-semibold">{patient.name}</h3>
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Phone className="h-3 w-3" />
+                        {patient.phone}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Mail className="h-3 w-3" />
+                        {patient.email}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Mail className="h-3 w-3" />
-                      {patient.email}
-                    </div>
+                    <p className="text-sm text-muted-foreground">Last visit: {patient.lastVisit}</p>
                   </div>
-                  <p className="text-sm text-muted-foreground">Last visit: {patient.lastVisit}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant={patient.status === "active" ? "default" : "secondary"}>
+                    {patient.status}
+                  </Badge>
+                  <div className="text-right">
+                    <p className="text-sm font-medium">{patient.adherence}%</p>
+                    <p className="text-xs text-muted-foreground">Adherence</p>
+                  </div>
+                  <Button variant="outline" onClick={() => onSelectPatient(patient)}>
+                    View
+                  </Button>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Badge variant={patient.status === "active" ? "default" : "secondary"}>
-                  {patient.status}
-                </Badge>
-                <div className="text-right">
-                  <p className="text-sm font-medium">{patient.adherence}%</p>
-                  <p className="text-xs text-muted-foreground">Adherence</p>
-                </div>
-                <Button variant="outline" onClick={() => onSelectPatient(patient)}>
-                  View
-                </Button>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </CardContent>
     </Card>

@@ -1,76 +1,16 @@
 "use client";
 import React, { useState } from "react";
 import { Sidebar, SidebarBody, SidebarLink } from "@/components/ui/sidebar";
-import {
-  IconArrowLeft,
-  IconBrandTabler,
-  IconMessage,
-  IconFileText,
-  IconCalendar,
-  IconPill,
-} from "@tabler/icons-react";
-import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { Chatbot } from "@/components/dashboard/chatbot";
-import { ThemeSwitcher } from "@/components/theme-switcher";
-import Link from "next/link";
+import { getUserSidebarLinks, Logo, LogoIcon } from "@/components/dashboard/user-sidebar";
 import { useParams } from "next/navigation";
 
 export default function ChatPage() {
   const params = useParams();
   const hash = params.hash as string;
 
-  const links = [
-    {
-      label: "Dashboard",
-      href: `/dashboard/${hash}`,
-      icon: (
-        <IconBrandTabler className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
-      ),
-    },
-    {
-      label: "Medicines",
-      href: `/dashboard/${hash}/medicines`,
-      icon: (
-        <IconPill className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
-      ),
-    },
-    {
-      label: "Appointments",
-      href: `/dashboard/${hash}/appointments`,
-      icon: (
-        <IconCalendar className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
-      ),
-    },
-    {
-      label: "Records",
-      href: `/dashboard/${hash}/records`,
-      icon: (
-        <IconFileText className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
-      ),
-    },
-    {
-      label: "Recordings",
-      href: `/dashboard/${hash}/recordings`,
-      icon: (
-        <IconMessage className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
-      ),
-    },
-    {
-      label: "Chat",
-      href: `/dashboard/${hash}/chat`,
-      icon: (
-        <IconMessage className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
-      ),
-    },
-    {
-      label: "Logout",
-      href: "#",
-      icon: (
-        <IconArrowLeft className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
-      ),
-    },
-  ];
+  const links = getUserSidebarLinks(hash);
   const [open, setOpen] = React.useState(false);
 
   const [chatMessages, setChatMessages] = useState<{ id: string; text: string; sender: "user" | "bot"; timestamp: Date }[]>([
@@ -106,7 +46,7 @@ export default function ChatPage() {
   return (
     <div
       className={cn(
-        "mx-auto flex w-full flex-1 flex-col overflow-hidden rounded-md border border-neutral-200 bg-gray-100 md:flex-row dark:border-neutral-700 dark:bg-neutral-800",
+        "mx-auto flex w-full flex-1 flex-col overflow-auto md:overflow-hidden rounded-md border border-neutral-200 bg-gray-100 md:flex-row dark:border-neutral-700 dark:bg-neutral-800",
         "h-screen",
       )}
     >
@@ -118,9 +58,6 @@ export default function ChatPage() {
               {links.map((link, idx) => (
                 <SidebarLink key={idx} link={link} />
               ))}
-              <div className="mt-4 px-2">
-                <ThemeSwitcher />
-              </div>
             </div>
           </div>
           <div>
@@ -150,32 +87,3 @@ export default function ChatPage() {
     </div>
   );
 }
-
-export const Logo = () => {
-  return (
-    <Link
-      href="/"
-      className="relative z-20 flex items-center space-x-2 py-1 text-sm font-normal text-black"
-    >
-      <div className="h-5 w-6 shrink-0 rounded-tl-lg rounded-tr-sm rounded-br-lg rounded-bl-sm bg-primary" />
-      <motion.span
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="font-medium whitespace-pre text-black dark:text-white"
-      >
-        MedAssist
-      </motion.span>
-    </Link>
-  );
-};
-
-export const LogoIcon = () => {
-  return (
-    <Link
-      href="/"
-      className="relative z-20 flex items-center space-x-2 py-1 text-sm font-normal text-black"
-    >
-      <div className="h-5 w-6 shrink-0 rounded-tl-lg rounded-tr-sm rounded-br-lg rounded-bl-sm bg-black dark:bg-white" />
-    </Link>
-  );
-};

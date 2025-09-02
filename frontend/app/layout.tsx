@@ -9,6 +9,7 @@ export const metadata: Metadata = {
   title: "MedAssist - Audio-Visual System for Medication and Health Support",
   description: "Comprehensive mobile and web-based health education and follow-up system to improve treatment adherence and patient engagement.",
   generator: "Next.js",
+  viewport: "width=device-width, initial-scale=1",
 }
 
 export default function RootLayout({

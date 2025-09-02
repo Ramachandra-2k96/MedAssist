@@ -18,6 +18,7 @@ import { PatientRecords } from "@/components/dashboard/patient-records";
 import { PatientRecordings } from "@/components/dashboard/patient-recordings";
 import { PatientChat } from "@/components/dashboard/patient-chat";
 import { PrescriptionEditor } from "@/components/dashboard/prescription-editor";
+import { getDoctorSidebarLinks, DoctorLogo, DoctorLogoIcon } from "@/components/dashboard/doctor-sidebar";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -26,47 +27,10 @@ export default function PatientsPage() {
   const params = useParams();
   const hash = params.hash as string;
 
-  const links = [
-    {
-      label: "Dashboard",
-      href: `/doctor-dashboard/${hash}`,
-      icon: (
-        <IconBrandTabler className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
-      ),
-    },
-    {
-      label: "Patients",
-      href: `/doctor-dashboard/${hash}/patients`,
-      icon: (
-        <IconUsers className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
-      ),
-    },
-    {
-      label: "Voice Recorder",
-      href: `/doctor-dashboard/${hash}/voice-recorder`,
-      icon: (
-        <IconMicrophone className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
-      ),
-    },
-    {
-      label: "Prescriptions",
-      href: `/doctor-dashboard/${hash}/prescriptions`,
-      icon: (
-        <IconFileText className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
-      ),
-    },
-    {
-      label: "Logout",
-      href: "#",
-      icon: (
-        <IconArrowLeft className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
-      ),
-    },
-  ];
+  const links = getDoctorSidebarLinks(hash);
   const [open, setOpen] = useState(false);
 
-  // Mock data
-  const patients = [
+  const [patients, setPatients] = useState([
     {
       id: "1",
       name: "John Doe",
@@ -94,12 +58,25 @@ export default function PatientsPage() {
       status: "inactive" as const,
       adherence: 45
     }
-  ]
+  ])
 
   const [selectedPatient, setSelectedPatient] = useState<typeof patients[0] | null>(null)
 
   const handleSelectPatient = (patient: typeof patients[0]) => {
     setSelectedPatient(patient)
+  }
+
+  const handleAddPatient = (newPatient: { name: string; phone: string; email: string }) => {
+    const patient = {
+      id: Date.now().toString(),
+      name: newPatient.name,
+      phone: newPatient.phone,
+      email: newPatient.email,
+      lastVisit: new Date().toISOString().split('T')[0],
+      status: "active" as const,
+      adherence: 0
+    }
+    setPatients([...patients, patient])
   }
 
   const handleSavePrescription = (prescription: { medicines: any[]; notes: string }) => {
@@ -110,14 +87,14 @@ export default function PatientsPage() {
   return (
     <div
       className={cn(
-        "mx-auto flex w-full flex-1 flex-col overflow-hidden rounded-md border border-neutral-200 bg-gray-100 md:flex-row dark:border-neutral-700 dark:bg-neutral-800",
+        "mx-auto flex w-full flex-1 flex-col overflow-auto md:overflow-hidden rounded-md border border-neutral-200 bg-gray-100 md:flex-row dark:border-neutral-700 dark:bg-neutral-800",
         "h-screen",
       )}
     >
       <Sidebar open={open} setOpen={setOpen}>
         <SidebarBody className="justify-between gap-10">
           <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
-            {open ? <Logo /> : <LogoIcon />}
+            {open ? <DoctorLogo /> : <DoctorLogoIcon />}
             <div className="mt-8 flex flex-col gap-2">
               {links.map((link, idx) => (
                 <SidebarLink key={idx} link={link} />
@@ -147,7 +124,7 @@ export default function PatientsPage() {
       <div className="flex flex-1">
         <div className="flex h-full w-full flex-1 flex-col gap-6 rounded-tl-2xl border border-neutral-200 bg-white p-6 dark:border-neutral-700 dark:bg-neutral-900 overflow-y-auto">
           {!selectedPatient ? (
-            <PatientList patients={patients} onSelectPatient={handleSelectPatient} />
+            <PatientList patients={patients} onSelectPatient={handleSelectPatient} onAddPatient={handleAddPatient} />
           ) : (
             <div className="space-y-6">
               <div className="flex items-center justify-between">
@@ -170,31 +147,3 @@ export default function PatientsPage() {
     </div>
   );
 }
-
-export const Logo = () => {
-  return (
-    <Link
-      href="/"
-      className="relative z-20 flex items-center space-x-2 py-1 text-sm font-normal text-black"
-    >
-    <div className="h-5 w-6 shrink-0 rounded-tl-lg rounded-tr-sm rounded-br-lg rounded-bl-sm bg-primary" />
-        <motion.span
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="font-medium whitespace-pre text-black dark:text-white"
-        >
-            MedAssist
-        </motion.span>
-    </Link>
-  );
-};
-export const LogoIcon = () => {
-  return (
-    <Link
-      href="#"
-      className="relative z-20 flex items-center space-x-2 py-1 text-sm font-normal text-black"
-    >
-      <div className="h-5 w-6 shrink-0 rounded-tl-lg rounded-tr-sm rounded-br-lg rounded-bl-sm bg-black dark:bg-white" />
-    </Link>
-  );
-};
