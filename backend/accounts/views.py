@@ -257,3 +257,13 @@ class PatientPrescriptionsView(APIView):
             return Response({'error': 'Prescription not found or not associated'}, status=status.HTTP_404_NOT_FOUND)
         prescription.delete()
         return Response({'message': 'Prescription deleted'}, status=status.HTTP_204_NO_CONTENT)
+
+
+class DoctorProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not request.user.groups.filter(name='Doctor').exists():
+            return Response({'error': 'Only doctors can access this'}, status=status.HTTP_403_FORBIDDEN)
+        serializer = ProfileSerializer(request.user.profile)
+        return Response(serializer.data)

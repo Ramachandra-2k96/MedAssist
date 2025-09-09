@@ -16,10 +16,11 @@ from .models import Profile, DoctorPatient, Record, AudioRecording, ChatMessage,
 class ProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer()
     role = serializers.SerializerMethodField()
+    photo_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Profile
-        fields = ('user', 'name', 'role')
+        fields = ('user', 'name', 'role', 'photo_url')
 
     def get_role(self, obj):
         groups = obj.user.groups.all()
@@ -29,6 +30,11 @@ class ProfileSerializer(serializers.ModelSerializer):
             return 'admin'
         else:
             return 'patient'
+
+    def get_photo_url(self, obj):
+        if obj.photo:
+            return obj.photo.url
+        return None
 
 class DoctorPatientSerializer(serializers.ModelSerializer):
     doctor = serializers.StringRelatedField()

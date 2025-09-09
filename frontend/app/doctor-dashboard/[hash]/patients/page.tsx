@@ -19,6 +19,7 @@ import { PatientRecordings } from "@/components/dashboard/patient-recordings";
 import { PatientChat } from "@/components/dashboard/patient-chat";
 import { API_BASE_URL } from "@/lib/config";
 import { PrescriptionEditor } from "@/components/dashboard/prescription-editor";
+import { Stethoscope } from "lucide-react";
 
 import { getDoctorSidebarLinks, DoctorLogo, DoctorLogoIcon } from "@/components/dashboard/doctor-sidebar";
 import { ThemeSwitcher } from "@/components/theme-switcher";
@@ -44,10 +45,33 @@ export default function PatientsPage() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(true);
+  const [doctorProfile, setDoctorProfile] = useState<any>(null);
 
   useEffect(() => {
     fetchPatients();
+    fetchDoctorProfile();
   }, []);
+
+  const fetchDoctorProfile = async () => {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      window.location.href = '/doctor-login';
+      return;
+    }
+    try {
+      const response = await fetch(`${API_BASE_URL}/doctor/profile/`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setDoctorProfile(data);
+      }
+    } catch (error) {
+      console.error('Error fetching doctor profile:', error);
+    }
+  };
 
   const fetchPatients = async () => {
     const token = localStorage.getItem('access_token');
@@ -162,21 +186,27 @@ export default function PatientsPage() {
             </div>
           </div>
           <div>
-            <SidebarLink
-              link={{
-                label: "Dr. Smith",
-                href: "#",
-                icon: (
-                  <img
-                    src="https://assets.aceternity.com/manu.png"
-                    className="h-7 w-7 shrink-0 rounded-full"
-                    width={50}
-                    height={50}
-                    alt="Avatar"
-                  />
-                ),
-              }}
-            />
+            {doctorProfile && (
+              <SidebarLink
+                link={{
+                  label: open ? (doctorProfile.name || doctorProfile.user?.email || "Doctor") : "",
+                  href: "#",
+                  icon: doctorProfile.photo_url ? (
+                    <img
+                      src={`${API_BASE_URL}${doctorProfile.photo_url}`}
+                      className="h-7 w-7 shrink-0 rounded-full"
+                      width={28}
+                      height={28}
+                      alt="Doctor Avatar"
+                    />
+                  ) : (
+                    <div className="h-7 w-7 shrink-0 rounded-full bg-blue-500 flex items-center justify-center">
+                      <Stethoscope className="h-4 w-4 text-white" />
+                    </div>
+                  ),
+                }}
+              />
+            )}
           </div>
         </SidebarBody>
       </Sidebar>
