@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Trash2, Play, Pause, FileAudio, Languages, Volume2, Mic, MicOff } from "lucide-react"
-import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition'
+import { API_BASE_URL } from "@/lib/config"
+import SpeechRecognition, { useSpeechRecognition } from "react-speech-recognition"
 
 interface Recording {
   id: number
@@ -70,7 +71,7 @@ export function PatientRecordings({ patientId, patientName }: PatientRecordingsP
   const fetchRecordings = async () => {
     try {
       const token = localStorage.getItem('access_token')
-      const response = await fetch(`http://localhost:8000/api/doctor/patients/${patientId}/audio/`, {
+      const response = await fetch(`${API_BASE_URL}/doctor/patients/${patientId}/audio/`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -211,7 +212,7 @@ export function PatientRecordings({ patientId, patientName }: PatientRecordingsP
       formData.append('transcription', transcription)
       formData.append('language', language)
 
-      const response = await fetch(`http://localhost:8000/api/doctor/patients/${patientId}/audio/`, {
+      const response = await fetch(`${API_BASE_URL}/doctor/patients/${patientId}/audio/`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -262,7 +263,7 @@ export function PatientRecordings({ patientId, patientName }: PatientRecordingsP
 
     // create audio element if needed
     if (!audioRefs.current[id]) {
-      const a = new Audio(`http://localhost:8000${rec.audio_file}`)
+      const a = new Audio(`${API_BASE_URL}${rec.audio_file}`)
       audioRefs.current[id] = a
       a.addEventListener('timeupdate', () => {
         const pct = a.duration ? (a.currentTime / a.duration) * 100 : 0
@@ -285,7 +286,7 @@ export function PatientRecordings({ patientId, patientName }: PatientRecordingsP
   const handleDelete = async (id: number) => {
     try {
       const token = localStorage.getItem('access_token')
-      const response = await fetch(`http://localhost:8000/api/doctor/patients/${patientId}/audio/`, {
+      const response = await fetch(`${API_BASE_URL}/doctor/patients/${patientId}/audio/`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

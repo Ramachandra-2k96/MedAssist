@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { API_BASE_URL } from "@/lib/config"
 import { Trash2, Upload } from "lucide-react"
 
 interface Record {
@@ -41,7 +42,7 @@ export function PatientRecords({ patientId, patientName }: PatientRecordsProps) 
   const fetchRecords = async () => {
     try {
       const token = localStorage.getItem('access_token')
-      const response = await fetch(`http://localhost:8000/api/doctor/patients/${patientId}/records/`, {
+      const response = await fetch(`${API_BASE_URL}/doctor/patients/${patientId}/records/`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -70,7 +71,7 @@ export function PatientRecords({ patientId, patientName }: PatientRecordsProps) 
         formData.append('file', newRecord.file)
       }
 
-      const response = await fetch(`http://localhost:8000/api/doctor/patients/${patientId}/records/`, {
+      const response = await fetch(`${API_BASE_URL}/doctor/patients/${patientId}/records/`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -93,7 +94,7 @@ export function PatientRecords({ patientId, patientName }: PatientRecordsProps) 
   const handleDeleteRecord = async (id: number) => {
     try {
       const token = localStorage.getItem('access_token')
-      const response = await fetch(`http://localhost:8000/api/doctor/patients/${patientId}/records/`, {
+      const response = await fetch(`${API_BASE_URL}/doctor/patients/${patientId}/records/`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -169,7 +170,7 @@ export function PatientRecords({ patientId, patientName }: PatientRecordsProps) 
                 <p className="font-medium">{record.title}</p>
                 <p className="text-sm text-muted-foreground">{record.type} - {new Date(record.uploaded_at).toLocaleDateString()} (by {record.uploaded_by})</p>
                 {record.file && (
-                  <a href={`http://localhost:8000${record.file}`} target="_blank" rel="noopener noreferrer" className="text-blue-500 text-sm">
+                  <a href={`${API_BASE_URL}${record.file}`} target="_blank" rel="noopener noreferrer" className="text-blue-500 text-sm">
                     View File
                   </a>
                 )}

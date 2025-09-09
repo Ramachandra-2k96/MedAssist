@@ -9,6 +9,7 @@ import { PatientRecords } from "@/components/dashboard/patient-records";
 import { PatientRecordings } from "@/components/dashboard/patient-recordings";
 import { PatientChat } from "@/components/dashboard/patient-chat";
 import { getDoctorSidebarLinks, DoctorLogo, DoctorLogoIcon } from "@/components/dashboard/doctor-sidebar";
+import { API_BASE_URL } from "@/lib/config";
 import { useParams } from "next/navigation";
 
 interface Patient {
@@ -43,7 +44,7 @@ export default function DoctorDashboard() {
       return;
     }
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/doctor/patients/', {
+      const response = await fetch(`${API_BASE_URL}/doctor/patients/`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -75,7 +76,7 @@ export default function DoctorDashboard() {
   const handleAddPatient = async (patientData: { name: string; phone: string; email: string }) => {
     const token = localStorage.getItem('access_token');
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/doctor/patients/', {
+      const response = await fetch(`${API_BASE_URL}/doctor/patients/`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -113,7 +114,7 @@ export default function DoctorDashboard() {
     formData.append('transcription', 'Mock transcription'); // In real, get from API
 
     try {
-      const response = await fetch(`http://127.0.0.1:8000/api/doctor/patients/${selectedPatient.id}/audio/`, {
+      const response = await fetch(`${API_BASE_URL}/doctor/patients/${selectedPatient.id}/audio/`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -141,7 +142,7 @@ export default function DoctorDashboard() {
     if (!selectedPatient) return;
     const token = localStorage.getItem('access_token');
     try {
-      const response = await fetch(`http://127.0.0.1:8000/api/doctor/patients/${selectedPatient.id}/prescriptions/`, {
+      const response = await fetch(`${API_BASE_URL}/patients/${selectedPatient.id}/prescriptions/`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

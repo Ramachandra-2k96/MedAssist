@@ -7,7 +7,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { Pill, Clock, Plus, Trash2, Save, FileText } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Pill, Clock, Plus, Trash2, Save, FileText, Calendar, Timer } from "lucide-react"
+import { API_BASE_URL } from "@/lib/config"
 
 interface Medicine {
   name: string
@@ -36,6 +38,47 @@ interface PrescriptionEditorProps {
 const medicineEmojis = ["💊", "🧴", "💉", "🩹", "🌡️", "🩺", "🧬", "🩸"]
 const medicineColors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7", "#DDA0DD", "#98D8C8", "#F7DC6F"]
 
+const frequencyOptions = [
+  { value: "once-daily", label: "Once daily" },
+  { value: "twice-daily", label: "Twice daily" },
+  { value: "three-times-daily", label: "Three times daily" },
+  { value: "four-times-daily", label: "Four times daily" },
+  { value: "as-needed", label: "As needed" },
+  { value: "every-4-hours", label: "Every 4 hours" },
+  { value: "every-6-hours", label: "Every 6 hours" },
+  { value: "every-8-hours", label: "Every 8 hours" },
+  { value: "every-12-hours", label: "Every 12 hours" },
+  { value: "weekly", label: "Weekly" },
+  { value: "monthly", label: "Monthly" }
+]
+
+const durationOptions = [
+  { value: "3-days", label: "3 days" },
+  { value: "5-days", label: "5 days" },
+  { value: "7-days", label: "1 week" },
+  { value: "10-days", label: "10 days" },
+  { value: "14-days", label: "2 weeks" },
+  { value: "21-days", label: "3 weeks" },
+  { value: "30-days", label: "1 month" },
+  { value: "60-days", label: "2 months" },
+  { value: "90-days", label: "3 months" },
+  { value: "ongoing", label: "Ongoing" },
+  { value: "as-needed", label: "As needed" }
+]
+
+const dosageUnits = [
+  { value: "mg", label: "mg" },
+  { value: "g", label: "g" },
+  { value: "ml", label: "ml" },
+  { value: "mcg", label: "mcg" },
+  { value: "IU", label: "IU" },
+  { value: "units", label: "units" },
+  { value: "tablets", label: "tablets" },
+  { value: "capsules", label: "capsules" },
+  { value: "drops", label: "drops" },
+  { value: "puffs", label: "puffs" }
+]
+
 export function PrescriptionEditor({ patientName, patientId, onSave }: PrescriptionEditorProps) {
   const [medicines, setMedicines] = useState<Medicine[]>([
     { name: "", dosage: "", frequency: "", duration: "", emoji: "💊", color: "#FF6B6B" }
@@ -55,7 +98,7 @@ export function PrescriptionEditor({ patientName, patientId, onSave }: Prescript
   const fetchPrescriptions = async () => {
     try {
       const token = localStorage.getItem('access_token')
-      const response = await fetch(`http://localhost:8000/api/doctor/patients/${patientId}/prescriptions/`, {
+      const response = await fetch(`${API_BASE_URL}/doctor/patients/${patientId}/prescriptions/`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -119,7 +162,7 @@ export function PrescriptionEditor({ patientName, patientId, onSave }: Prescript
   const handleDeletePrescription = async (prescriptionId: number) => {
     try {
       const token = localStorage.getItem('access_token')
-      const response = await fetch(`http://localhost:8000/api/doctor/patients/${patientId}/prescriptions/`, {
+      const response = await fetch(`${API_BASE_URL}/doctor/patients/${patientId}/prescriptions/`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -227,7 +270,7 @@ export function PrescriptionEditor({ patientName, patientId, onSave }: Prescript
                 {medicines.map((medicine, index) => (
                   <div key={index} className="flex items-center gap-4 p-4 border rounded-lg bg-white dark:bg-gray-800">
                     <div className="text-2xl">{medicine.emoji}</div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 flex-1">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3 flex-1">
                       <div>
                         <Label htmlFor={`name-${index}`} className="text-xs">Medicine Name</Label>
                         <Input
@@ -238,35 +281,71 @@ export function PrescriptionEditor({ patientName, patientId, onSave }: Prescript
                           className="h-8"
                         />
                       </div>
-                      <div>
+                      <div className="md:col-span-2">
                         <Label htmlFor={`dosage-${index}`} className="text-xs">Dosage</Label>
-                        <Input
-                          id={`dosage-${index}`}
-                          value={medicine.dosage}
-                          onChange={(e) => updateMedicine(index, "dosage", e.target.value)}
-                          placeholder="e.g., 500mg"
-                          className="h-8"
-                        />
+                        <div className="flex gap-1">
+                          <Input
+                            id={`dosage-${index}`}
+                            value={medicine.dosage}
+                            onChange={(e) => updateMedicine(index, "dosage", e.target.value)}
+                            placeholder="e.g., 500"
+                            className="h-8 flex-1"
+                          />
+                          <Select
+                            value={medicine.dosage.split(' ').pop() || "mg"}
+                            onValueChange={(value) => {
+                              const currentDosage = medicine.dosage.split(' ')[0] || ""
+                              updateMedicine(index, "dosage", `${currentDosage} ${value}`)
+                            }}
+                          >
+                            <SelectTrigger className="h-8 w-20">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {dosageUnits.map((unit) => (
+                                <SelectItem key={unit.value} value={unit.value}>
+                                  {unit.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
                       <div>
                         <Label htmlFor={`frequency-${index}`} className="text-xs">Frequency</Label>
-                        <Input
-                          id={`frequency-${index}`}
+                        <Select
                           value={medicine.frequency}
-                          onChange={(e) => updateMedicine(index, "frequency", e.target.value)}
-                          placeholder="e.g., 3 times/day"
-                          className="h-8"
-                        />
+                          onValueChange={(value) => updateMedicine(index, "frequency", value)}
+                        >
+                          <SelectTrigger className="h-8">
+                            <SelectValue placeholder="Select frequency" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {frequencyOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div>
                         <Label htmlFor={`duration-${index}`} className="text-xs">Duration</Label>
-                        <Input
-                          id={`duration-${index}`}
+                        <Select
                           value={medicine.duration}
-                          onChange={(e) => updateMedicine(index, "duration", e.target.value)}
-                          placeholder="e.g., 7 days"
-                          className="h-8"
-                        />
+                          onValueChange={(value) => updateMedicine(index, "duration", value)}
+                        >
+                          <SelectTrigger className="h-8">
+                            <SelectValue placeholder="Select duration" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {durationOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
                     <Button

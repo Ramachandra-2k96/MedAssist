@@ -8,6 +8,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { API_BASE_URL } from "@/lib/config"
 import { Eye, EyeOff } from "lucide-react"
 
 export default function DoctorLoginPage() {
@@ -20,7 +21,7 @@ export default function DoctorLoginPage() {
     e.preventDefault()
     setIsLoading(true)
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/login/', {
+      const response = await fetch(`${API_BASE_URL}/login/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -17,7 +17,9 @@ import { PatientList } from "@/components/dashboard/patient-list";
 import { PatientRecords } from "@/components/dashboard/patient-records";
 import { PatientRecordings } from "@/components/dashboard/patient-recordings";
 import { PatientChat } from "@/components/dashboard/patient-chat";
+import { API_BASE_URL } from "@/lib/config";
 import { PrescriptionEditor } from "@/components/dashboard/prescription-editor";
+
 import { getDoctorSidebarLinks, DoctorLogo, DoctorLogoIcon } from "@/components/dashboard/doctor-sidebar";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import Link from "next/link";
@@ -54,7 +56,7 @@ export default function PatientsPage() {
       return;
     }
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/doctor/patients/', {
+      const response = await fetch(`${API_BASE_URL}/doctor/patients/`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -90,7 +92,7 @@ export default function PatientsPage() {
   const handleAddPatient = async (patientData: { name: string; phone: string; email: string }) => {
     const token = localStorage.getItem('access_token');
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/doctor/patients/', {
+      const response = await fetch(`${API_BASE_URL}/doctor/patients/`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -119,7 +121,7 @@ export default function PatientsPage() {
     if (!selectedPatient) return;
     const token = localStorage.getItem('access_token');
     try {
-      const response = await fetch(`http://127.0.0.1:8000/api/doctor/patients/${selectedPatient.id}/prescriptions/`, {
+      const response = await fetch(`${API_BASE_URL}/doctor/patients/${selectedPatient.id}/prescriptions/`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
