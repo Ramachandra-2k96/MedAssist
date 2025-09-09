@@ -9,38 +9,45 @@ import { Trash2, Play, Pause, FileAudio, Languages, Volume2, Mic, MicOff } from 
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition'
 
 interface Recording {
-  id: string
+  id: number
   title: string
-  recordedAt: string
-  duration: string
-  uploadedBy: "doctor" | "patient"
-  audioUrl: string
+  audio_file: string
   transcription: string
   language: string
+  recorded_at: string
+  uploaded_by: string
 }
 
 interface PatientRecordingsProps {
-  patientId?: string
-  patientName?: string
+  patientId: string
+  patientName: string
 }
 
 export function PatientRecordings({ patientId, patientName }: PatientRecordingsProps) {
   const [recordings, setRecordings] = useState<Recording[]>([])
+  const [loading, setLoading] = useState(true)
+  const [uploading, setUploading] = useState(false)
   const [isRecording, setIsRecording] = useState(false)
   const [showLanguageSelect, setShowLanguageSelect] = useState(false)
   const [selectedLanguage, setSelectedLanguage] = useState("en")
   const [recordingSeconds, setRecordingSeconds] = useState(0)
-  const [playingId, setPlayingId] = useState<string | null>(null)
-  const [playProgress, setPlayProgress] = useState<{ [key: string]: number }>({})
-  const [showTranscription, setShowTranscription] = useState<{ [key: string]: boolean }>({})
+  const [playingId, setPlayingId] = useState<number | null>(null)
+  const [playProgress, setPlayProgress] = useState<{ [key: number]: number }>({})
+  const [showTranscription, setShowTranscription] = useState<{ [key: number]: boolean }>({})
 
-  const audioRefs = useRef<{ [key: string]: HTMLAudioElement | null }>({})
+  const audioRefs = useRef<{ [key: number]: HTMLAudioElement | null }>({})
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const recordedChunksRef = useRef<Blob[]>([])
   const timerRef = useRef<number | null>(null)
   const finalTranscriptRef = useRef<string | null>(null)
 
   const { transcript, listening, resetTranscript, browserSupportsSpeechRecognition } = useSpeechRecognition()
+
+  useEffect(() => {
+    if (patientId) {
+      fetchRecordings()
+    }
+  }, [patientId])
 
   useEffect(() => {
     // keep a live preview of the transcript while listening
@@ -60,6 +67,25 @@ export function PatientRecordings({ patientId, patientName }: PatientRecordingsP
     }
   }, [])
 
+  const fetchRecordings = async () => {
+    try {
+      const token = localStorage.getItem('access_token')
+      const response = await fetch(`http://localhost:8000/api/doctor/patients/${patientId}/audio/`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setRecordings(data)
+      }
+    } catch (error) {
+      console.error('Error fetching recordings:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const getSpeechLanguageCode = (lang: string) => {
     const map: Record<string, string> = {
       en: 'en-US', kn: 'kn-IN', es: 'es-ES', fr: 'fr-FR', de: 'de-DE', it: 'it-IT', pt: 'pt-BR', hi: 'hi-IN', ar: 'ar-SA', zh: 'zh-CN', ja: 'ja-JP'
@@ -74,6 +100,16 @@ export function PatientRecordings({ patientId, patientName }: PatientRecordingsP
     return `${m}:${s.toString().padStart(2, '0')}`
   }
 
+  useEffect(() => {
+    return () => {
+      // cleanup audio objects and object URLs
+      Object.values(audioRefs.current).forEach(a => {
+        try { a?.pause() } catch {}
+        if (a?.src?.startsWith('blob:')) URL.revokeObjectURL(a.src)
+      })
+      if (timerRef.current) window.clearInterval(timerRef.current)
+    }
+  }, [])
   const startRecording = async () => {
     // show language selector first
     if (!showLanguageSelect) return setShowLanguageSelect(true)
@@ -137,18 +173,9 @@ export function PatientRecordings({ patientId, patientName }: PatientRecordingsP
 
         const finalTranscript = (finalTranscriptRef.current && finalTranscriptRef.current.trim()) || (transcript && transcript.trim()) || 'No speech detected during recording.'
 
-        const rec: Recording = {
-          id: Date.now().toString(),
-          title: `Recording ${new Date().toLocaleTimeString()}`,
-          recordedAt: new Date().toLocaleString(),
-          duration: formatDuration(durationSeconds ?? recordingSeconds),
-          uploadedBy: 'doctor',
-          audioUrl,
-          transcription: finalTranscript,
-          language: selectedLanguage
-        }
+        // Upload to backend
+        await uploadRecording(blob, finalTranscript, selectedLanguage, durationSeconds ?? recordingSeconds)
 
-        setRecordings(prev => [...prev, rec])
         setRecordingSeconds(0)
         finalTranscriptRef.current = null
         resetTranscript()
@@ -174,6 +201,35 @@ export function PatientRecordings({ patientId, patientName }: PatientRecordingsP
     }
   }
 
+  const uploadRecording = async (blob: Blob, transcription: string, language: string, duration: number) => {
+    setUploading(true)
+    try {
+      const token = localStorage.getItem('access_token')
+      const formData = new FormData()
+      formData.append('title', `Recording ${new Date().toLocaleTimeString()}`)
+      formData.append('audio_file', blob, 'recording.webm')
+      formData.append('transcription', transcription)
+      formData.append('language', language)
+
+      const response = await fetch(`http://localhost:8000/api/doctor/patients/${patientId}/audio/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setRecordings(prev => [...prev, data])
+      }
+    } catch (error) {
+      console.error('Error uploading recording:', error)
+    } finally {
+      setUploading(false)
+    }
+  }
+
   const stopRecording = () => {
     if (!mediaRecorderRef.current || !isRecording) return
 
@@ -189,7 +245,7 @@ export function PatientRecordings({ patientId, patientName }: PatientRecordingsP
     }, 400)
   }
 
-  const handlePlayPause = (id: string) => {
+  const handlePlayPause = (id: number) => {
     const rec = recordings.find(r => r.id === id)
     if (!rec) return
 
@@ -206,7 +262,7 @@ export function PatientRecordings({ patientId, patientName }: PatientRecordingsP
 
     // create audio element if needed
     if (!audioRefs.current[id]) {
-      const a = new Audio(rec.audioUrl)
+      const a = new Audio(`http://localhost:8000${rec.audio_file}`)
       audioRefs.current[id] = a
       a.addEventListener('timeupdate', () => {
         const pct = a.duration ? (a.currentTime / a.duration) * 100 : 0
@@ -226,16 +282,32 @@ export function PatientRecordings({ patientId, patientName }: PatientRecordingsP
     setPlayingId(id)
   }
 
-  const handleDelete = (id: string) => {
-    const rec = recordings.find(r => r.id === id)
-    if (rec) {
-      if (audioRefs.current[id]) {
-        audioRefs.current[id]?.pause()
-        try { URL.revokeObjectURL(audioRefs.current[id]!.src) } catch {}
-        delete audioRefs.current[id]
+  const handleDelete = async (id: number) => {
+    try {
+      const token = localStorage.getItem('access_token')
+      const response = await fetch(`http://localhost:8000/api/doctor/patients/${patientId}/audio/`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ recording_id: id })
+      })
+
+      if (response.ok) {
+        const rec = recordings.find(r => r.id === id)
+        if (rec) {
+          if (audioRefs.current[id]) {
+            audioRefs.current[id]?.pause()
+            try { URL.revokeObjectURL(audioRefs.current[id]!.src) } catch {}
+            delete audioRefs.current[id]
+          }
+        }
+        setRecordings(prev => prev.filter(r => r.id !== id))
       }
+    } catch (error) {
+      console.error('Error deleting recording:', error)
     }
-    setRecordings(prev => prev.filter(r => r.id !== id))
   }
 
   return (
@@ -315,7 +387,9 @@ export function PatientRecordings({ patientId, patientName }: PatientRecordingsP
         {/* Recordings list */}
         <div className="space-y-4">
           <h3 className="font-semibold">Audio Recordings</h3>
-          {recordings.length === 0 ? (
+          {loading ? (
+            <p className="text-muted-foreground text-center py-8">Loading recordings...</p>
+          ) : recordings.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">No recordings yet.</p>
           ) : (
             recordings.map(r => (
@@ -325,7 +399,7 @@ export function PatientRecordings({ patientId, patientName }: PatientRecordingsP
                     <FileAudio className="w-5 h-5 text-blue-500" />
                     <div>
                       <div className="font-medium">{r.title}</div>
-                      <div className="text-sm text-muted-foreground">{r.recordedAt} · {r.duration} · {r.language.toUpperCase()} · Uploaded by: {r.uploadedBy}</div>
+                      <div className="text-sm text-muted-foreground">{new Date(r.recorded_at).toLocaleString()} · {r.language.toUpperCase()} · Uploaded by: {r.uploaded_by}</div>
                     </div>
                   </div>
 

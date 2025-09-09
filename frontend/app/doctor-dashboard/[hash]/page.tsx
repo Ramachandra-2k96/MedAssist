@@ -1,27 +1,25 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Sidebar, SidebarBody, SidebarLink } from "@/components/ui/sidebar";
-import {
-  IconArrowLeft,
-  IconBrandTabler,
-  IconSettings,
-  IconUserBolt,
-  IconUsers,
-  IconMicrophone,
-  IconFileText,
-} from "@tabler/icons-react";
-import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { PatientList } from "@/components/dashboard/patient-list";
-import { VoiceRecorder } from "@/components/dashboard/voice-recorder";
 import { PrescriptionEditor } from "@/components/dashboard/prescription-editor";
 import { PatientRecords } from "@/components/dashboard/patient-records";
 import { PatientRecordings } from "@/components/dashboard/patient-recordings";
 import { PatientChat } from "@/components/dashboard/patient-chat";
 import { getDoctorSidebarLinks, DoctorLogo, DoctorLogoIcon } from "@/components/dashboard/doctor-sidebar";
-import Link from "next/link";
 import { useParams } from "next/navigation";
+
+interface Patient {
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+  lastVisit: string;
+  status: "active" | "inactive";
+  adherence: number;
+}
 
 export default function DoctorDashboard() {
   const params = useParams();
@@ -29,6 +27,142 @@ export default function DoctorDashboard() {
 
   const links = getDoctorSidebarLinks(hash);
   const [open, setOpen] = useState(false);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchPatients();
+  }, []);
+
+  const fetchPatients = async () => {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      // Redirect to login
+      window.location.href = '/doctor-login';
+      return;
+    }
+    try {
+      const response = await fetch('http://127.0.0.1:8000/api/doctor/patients/', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const formattedPatients: Patient[] = data
+          .filter((dp: any) => dp.patient && dp.patient.id) // Filter out invalid entries
+          .map((dp: any) => ({
+            id: dp.patient.id?.toString() || '',
+            name: dp.patient.profile?.name || dp.patient.username || 'Unknown',
+            phone: '+1234567890', // Mock, as not in model
+            email: dp.patient.email || '',
+            lastVisit: dp.added_at?.split('T')[0] || '',
+            status: 'active' as const,
+            adherence: 85, // Mock
+          }))
+          .filter((patient: Patient) => patient.id && patient.name); // Filter out patients without id or name
+        setPatients(formattedPatients);
+      } else {
+        console.error('Failed to fetch patients');
+      }
+    } catch (error) {
+      console.error('Error fetching patients:', error);
+    }
+    setLoading(false);
+  };
+
+  const handleAddPatient = async (patientData: { name: string; phone: string; email: string }) => {
+    const token = localStorage.getItem('access_token');
+    try {
+      const response = await fetch('http://127.0.0.1:8000/api/doctor/patients/', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: patientData.email }),
+      });
+      if (response.ok) {
+        fetchPatients(); // Refresh list
+      } else {
+        console.error('Failed to add patient');
+      }
+    } catch (error) {
+      console.error('Error adding patient:', error);
+    }
+  };
+
+  const handleSelectPatient = (patient: Patient | null) => {
+    setSelectedPatient(patient);
+  };
+
+  const handleRecordingComplete = (audioBlob: Blob) => {
+    console.log("Recording completed:", audioBlob);
+    // Upload to backend
+    if (selectedPatient) {
+      uploadAudio(audioBlob);
+    }
+  };
+
+  const uploadAudio = async (audioBlob: Blob) => {
+    if (!selectedPatient) return;
+    const token = localStorage.getItem('access_token');
+    const formData = new FormData();
+    formData.append('audio_file', audioBlob, 'recording.wav');
+    formData.append('transcription', 'Mock transcription'); // In real, get from API
+
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/api/doctor/patients/${selectedPatient.id}/audio/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+      if (response.ok) {
+        console.log('Audio uploaded');
+      } else {
+        console.error('Failed to upload audio');
+      }
+    } catch (error) {
+      console.error('Error uploading audio:', error);
+    }
+  };
+
+  const handleSavePrescription = (prescription: { medicines: any[]; notes: string }) => {
+    console.log("Saving prescription:", prescription);
+    if (selectedPatient) {
+      savePrescription(prescription);
+    }
+  };
+
+  const savePrescription = async (prescription: { medicines: any[]; notes: string }) => {
+    if (!selectedPatient) return;
+    const token = localStorage.getItem('access_token');
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/api/doctor/patients/${selectedPatient.id}/prescriptions/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(prescription),
+      });
+      if (response.ok) {
+        console.log('Prescription saved');
+      } else {
+        console.error('Failed to save prescription');
+      }
+    } catch (error) {
+      console.error('Error saving prescription:', error);
+    }
+  };
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
   return (
     <div
       className={cn(
@@ -65,71 +199,46 @@ export default function DoctorDashboard() {
           </div>
         </SidebarBody>
       </Sidebar>
-      <DoctorDashboardContent />
+      <DoctorDashboardContent
+        patients={patients}
+        selectedPatient={selectedPatient}
+        onSelectPatient={handleSelectPatient}
+        onAddPatient={handleAddPatient}
+        onRecordingComplete={handleRecordingComplete}
+        onSavePrescription={handleSavePrescription}
+      />
     </div>
   );
 }
+
 // Dummy dashboard component with content
-const DoctorDashboardContent = () => {
-  // Mock data
-  const patients = [
-    {
-      id: "1",
-      name: "John Doe",
-      phone: "+1234567890",
-      email: "john@example.com",
-      lastVisit: "2025-08-20",
-      status: "active" as const,
-      adherence: 85
-    },
-    {
-      id: "2",
-      name: "Jane Smith",
-      phone: "+1234567891",
-      email: "jane@example.com",
-      lastVisit: "2025-08-15",
-      status: "active" as const,
-      adherence: 92
-    },
-    {
-      id: "3",
-      name: "Bob Johnson",
-      phone: "+1234567892",
-      email: "bob@example.com",
-      lastVisit: "2025-07-30",
-      status: "inactive" as const,
-      adherence: 45
-    }
-  ]
-
-  const [selectedPatient, setSelectedPatient] = useState<typeof patients[0] | null>(null)
-
-  const handleSelectPatient = (patient: typeof patients[0]) => {
-    setSelectedPatient(patient)
-  }
-
-  const handleRecordingComplete = (audioBlob: Blob) => {
-    console.log("Recording completed:", audioBlob)
-    // Here you would typically send the audio to a speech-to-text service
-  }
-
-  const handleSavePrescription = (prescription: { medicines: any[]; notes: string }) => {
-    console.log("Saving prescription:", prescription)
-    // Here you would save the prescription to the backend
-  }
-
+const DoctorDashboardContent = ({
+  patients,
+  selectedPatient,
+  onSelectPatient,
+  onAddPatient,
+  onRecordingComplete,
+  onSavePrescription,
+}: {
+  patients: Patient[];
+  selectedPatient: Patient | null;
+  onSelectPatient: (patient: Patient | null) => void;
+  onAddPatient: (patientData: { name: string; phone: string; email: string }) => void;
+  onRecordingComplete: (audioBlob: Blob) => void;
+  onSavePrescription: (prescription: { medicines: any[]; notes: string }) => void;
+}) => {
   return (
     <div className="flex flex-1">
       <div className="flex h-full w-full flex-1 flex-col gap-6 rounded-tl-2xl border border-neutral-200 bg-white p-6 dark:border-neutral-700 dark:bg-neutral-900 overflow-y-auto">
         {!selectedPatient ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <PatientList patients={patients} onSelectPatient={handleSelectPatient} />
+                        <PatientList patients={patients} onSelectPatient={onSelectPatient} onAddPatient={onAddPatient} />
           </div>
-        ) : (
+        ) : selectedPatient && selectedPatient.id && selectedPatient.id !== 'undefined' && selectedPatient.name ? (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold">Patient: {selectedPatient.name}</h2>
-              <Button onClick={() => setSelectedPatient(null)}>Back to Patients</Button>
+              <Button onClick={() => onSelectPatient(null)}>Back to Patients</Button>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <PatientRecords patientId={selectedPatient.id} patientName={selectedPatient.name} />
@@ -138,10 +247,11 @@ const DoctorDashboardContent = () => {
             <PatientChat patientId={selectedPatient.id} patientName={selectedPatient.name} />
             <PrescriptionEditor
               patientName={selectedPatient.name}
-              onSave={handleSavePrescription}
+              patientId={selectedPatient.id}
+              onSave={onSavePrescription}
             />
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

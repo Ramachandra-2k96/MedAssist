@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Sidebar, SidebarBody, SidebarLink } from "@/components/ui/sidebar";
 import {
   IconArrowLeft,
@@ -23,65 +23,122 @@ import { ThemeSwitcher } from "@/components/theme-switcher";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
+interface Patient {
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+  lastVisit: string;
+  status: "active" | "inactive";
+  adherence: number;
+}
+
 export default function PatientsPage() {
   const params = useParams();
   const hash = params.hash as string;
 
   const links = getDoctorSidebarLinks(hash);
   const [open, setOpen] = useState(false);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const [patients, setPatients] = useState([
-    {
-      id: "1",
-      name: "John Doe",
-      phone: "+1234567890",
-      email: "john@example.com",
-      lastVisit: "2025-08-20",
-      status: "active" as const,
-      adherence: 85
-    },
-    {
-      id: "2",
-      name: "Jane Smith",
-      phone: "+1234567891",
-      email: "jane@example.com",
-      lastVisit: "2025-08-15",
-      status: "active" as const,
-      adherence: 92
-    },
-    {
-      id: "3",
-      name: "Bob Johnson",
-      phone: "+1234567892",
-      email: "bob@example.com",
-      lastVisit: "2025-07-30",
-      status: "inactive" as const,
-      adherence: 45
+  useEffect(() => {
+    fetchPatients();
+  }, []);
+
+  const fetchPatients = async () => {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      window.location.href = '/doctor-login';
+      return;
     }
-  ])
-
-  const [selectedPatient, setSelectedPatient] = useState<typeof patients[0] | null>(null)
-
-  const handleSelectPatient = (patient: typeof patients[0]) => {
-    setSelectedPatient(patient)
-  }
-
-  const handleAddPatient = (newPatient: { name: string; phone: string; email: string }) => {
-    const patient = {
-      id: Date.now().toString(),
-      name: newPatient.name,
-      phone: newPatient.phone,
-      email: newPatient.email,
-      lastVisit: new Date().toISOString().split('T')[0],
-      status: "active" as const,
-      adherence: 0
+    try {
+      const response = await fetch('http://127.0.0.1:8000/api/doctor/patients/', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const formattedPatients: Patient[] = data
+          .filter((dp: any) => dp.patient && dp.patient.id)
+          .map((dp: any) => ({
+            id: dp.patient.id?.toString() || '',
+            name: dp.patient.profile?.name || dp.patient.username || 'Unknown',
+            phone: '+1234567890',
+            email: dp.patient.email || '',
+            lastVisit: dp.added_at?.split('T')[0] || '',
+            status: 'active' as const,
+            adherence: 85,
+          }))
+          .filter((patient: Patient) => patient.id && patient.name);
+        setPatients(formattedPatients);
+      } else {
+        console.error('Failed to fetch patients');
+      }
+    } catch (error) {
+      console.error('Error fetching patients:', error);
     }
-    setPatients([...patients, patient])
-  }
+    setLoading(false);
+  };
+
+  const handleSelectPatient = (patient: Patient) => {
+    setSelectedPatient(patient);
+  };
+
+  const handleAddPatient = async (patientData: { name: string; phone: string; email: string }) => {
+    const token = localStorage.getItem('access_token');
+    try {
+      const response = await fetch('http://127.0.0.1:8000/api/doctor/patients/', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: patientData.email }),
+      });
+      if (response.ok) {
+        fetchPatients();
+      } else {
+        console.error('Failed to add patient');
+      }
+    } catch (error) {
+      console.error('Error adding patient:', error);
+    }
+  };
 
   const handleSavePrescription = (prescription: { medicines: any[]; notes: string }) => {
-    console.log("Saving prescription:", prescription)
-    // Here you would save the prescription to the backend
+    console.log("Saving prescription:", prescription);
+    if (selectedPatient) {
+      savePrescription(prescription);
+    }
+  };
+
+  const savePrescription = async (prescription: { medicines: any[]; notes: string }) => {
+    if (!selectedPatient) return;
+    const token = localStorage.getItem('access_token');
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/api/doctor/patients/${selectedPatient.id}/prescriptions/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(prescription),
+      });
+      if (response.ok) {
+        console.log('Prescription saved');
+      } else {
+        console.error('Failed to save prescription');
+      }
+    } catch (error) {
+      console.error('Error saving prescription:', error);
+    }
+  };
+
+  if (loading) {
+    return <div>Loading...</div>;
   }
 
   return (
@@ -137,6 +194,7 @@ export default function PatientsPage() {
               </div>
               <PatientChat patientId={selectedPatient.id} patientName={selectedPatient.name} />
               <PrescriptionEditor
+                patientId={selectedPatient.id}
                 patientName={selectedPatient.name}
                 onSave={handleSavePrescription}
               />

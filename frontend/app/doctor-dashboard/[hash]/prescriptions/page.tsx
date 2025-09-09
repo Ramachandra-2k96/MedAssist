@@ -1,12 +1,9 @@
 "use client";
 import React from "react";
 import { Sidebar, SidebarBody, SidebarLink } from "@/components/ui/sidebar";
-import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { PrescriptionEditor } from "@/components/dashboard/prescription-editor";
-import { ThemeSwitcher } from "@/components/theme-switcher";
 import { getDoctorSidebarLinks, DoctorLogo, DoctorLogoIcon } from "@/components/dashboard/doctor-sidebar";
-import Link from "next/link";
 import { useParams } from "next/navigation";
 
 export default function PrescriptionsPage() {
@@ -61,6 +58,7 @@ export default function PrescriptionsPage() {
       <div className="flex flex-1">
         <div className="flex h-full w-full flex-1 flex-col gap-6 rounded-tl-2xl border border-neutral-200 bg-white p-6 dark:border-neutral-700 dark:bg-neutral-900 overflow-y-auto">
           <PrescriptionEditor
+            patientId="123"
             patientName="Selected Patient"
             onSave={handleSavePrescription}
           />

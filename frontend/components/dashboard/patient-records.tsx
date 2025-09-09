@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,12 +8,12 @@ import { Label } from "@/components/ui/label"
 import { Trash2, Upload } from "lucide-react"
 
 interface Record {
-  id: string
+  id: number
   type: string
   title: string
-  date: string
-  uploadedBy: "doctor" | "patient"
-  file?: File
+  file?: string
+  uploaded_at: string
+  uploaded_by: string
 }
 
 interface PatientRecordsProps {
@@ -22,22 +22,9 @@ interface PatientRecordsProps {
 }
 
 export function PatientRecords({ patientId, patientName }: PatientRecordsProps) {
-  const [records, setRecords] = useState<Record[]>([
-    {
-      id: "1",
-      type: "Prescription",
-      title: "Blood Pressure Medication",
-      date: "2025-08-15",
-      uploadedBy: "doctor"
-    },
-    {
-      id: "2",
-      type: "Lab Report",
-      title: "Blood Test Results",
-      date: "2025-08-10",
-      uploadedBy: "patient"
-    }
-  ])
+  const [records, setRecords] = useState<Record[]>([])
+  const [loading, setLoading] = useState(true)
+  const [uploading, setUploading] = useState(false)
 
   const [newRecord, setNewRecord] = useState({
     type: "",
@@ -45,23 +32,82 @@ export function PatientRecords({ patientId, patientName }: PatientRecordsProps) 
     file: null as File | null
   })
 
-  const handleAddRecord = () => {
-    if (newRecord.type && newRecord.title) {
-      const record: Record = {
-        id: Date.now().toString(),
-        type: newRecord.type,
-        title: newRecord.title,
-        date: new Date().toISOString().split('T')[0],
-        uploadedBy: "doctor", // Assuming doctor is adding
-        file: newRecord.file || undefined
+  useEffect(() => {
+    if (patientId) {
+      fetchRecords()
+    }
+  }, [patientId])
+
+  const fetchRecords = async () => {
+    try {
+      const token = localStorage.getItem('access_token')
+      const response = await fetch(`http://localhost:8000/api/doctor/patients/${patientId}/records/`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setRecords(data)
       }
-      setRecords([...records, record])
-      setNewRecord({ type: "", title: "", file: null })
+    } catch (error) {
+      console.error('Error fetching records:', error)
+    } finally {
+      setLoading(false)
     }
   }
 
-  const handleDeleteRecord = (id: string) => {
-    setRecords(records.filter(r => r.id !== id))
+  const handleAddRecord = async () => {
+    if (!newRecord.type || !newRecord.title) return
+
+    setUploading(true)
+    try {
+      const token = localStorage.getItem('access_token')
+      const formData = new FormData()
+      formData.append('type', newRecord.type)
+      formData.append('title', newRecord.title)
+      if (newRecord.file) {
+        formData.append('file', newRecord.file)
+      }
+
+      const response = await fetch(`http://localhost:8000/api/doctor/patients/${patientId}/records/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setRecords([...records, data])
+        setNewRecord({ type: "", title: "", file: null })
+      }
+    } catch (error) {
+      console.error('Error adding record:', error)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleDeleteRecord = async (id: number) => {
+    try {
+      const token = localStorage.getItem('access_token')
+      const response = await fetch(`http://localhost:8000/api/doctor/patients/${patientId}/records/`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ record_id: id })
+      })
+
+      if (response.ok) {
+        setRecords(records.filter(r => r.id !== id))
+      }
+    } catch (error) {
+      console.error('Error deleting record:', error)
+    }
   }
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -69,6 +115,10 @@ export function PatientRecords({ patientId, patientName }: PatientRecordsProps) 
     if (file) {
       setNewRecord({ ...newRecord, file })
     }
+  }
+
+  if (loading) {
+    return <Card><CardContent>Loading records...</CardContent></Card>
   }
 
   return (
@@ -106,9 +156,9 @@ export function PatientRecords({ patientId, patientName }: PatientRecordsProps) 
             accept=".pdf,.jpg,.png,.doc,.docx"
           />
         </div>
-        <Button onClick={handleAddRecord} className="w-full">
+        <Button onClick={handleAddRecord} className="w-full" disabled={uploading}>
           <Upload className="w-4 h-4 mr-2" />
-          Add Record
+          {uploading ? 'Uploading...' : 'Add Record'}
         </Button>
 
         <div className="space-y-2">
@@ -117,7 +167,12 @@ export function PatientRecords({ patientId, patientName }: PatientRecordsProps) 
             <div key={record.id} className="flex items-center justify-between p-2 border rounded">
               <div>
                 <p className="font-medium">{record.title}</p>
-                <p className="text-sm text-muted-foreground">{record.type} - {record.date} (by {record.uploadedBy})</p>
+                <p className="text-sm text-muted-foreground">{record.type} - {new Date(record.uploaded_at).toLocaleDateString()} (by {record.uploaded_by})</p>
+                {record.file && (
+                  <a href={`http://localhost:8000${record.file}`} target="_blank" rel="noopener noreferrer" className="text-blue-500 text-sm">
+                    View File
+                  </a>
+                )}
               </div>
               <Button
                 variant="destructive"

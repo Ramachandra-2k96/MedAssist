@@ -8,23 +8,45 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Eye, EyeOff } from "lucide-react"
 
 export default function DoctorLoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    // Simulate login process
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    try {
+      const response = await fetch('http://127.0.0.1:8000/api/login/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      })
+      const data = await response.json()
+      if (response.ok) {
+        if (data.user.role !== 'doctor') {
+          alert('This account is not a doctor account.')
+          setIsLoading(false)
+          return
+        }
+        localStorage.setItem('access_token', data.access)
+        localStorage.setItem('refresh_token', data.refresh)
+        localStorage.setItem('user', JSON.stringify(data.user))
+        const hash = btoa(email).replace(/[^a-zA-Z0-9]/g, '').substring(0, 32)
+        window.location.href = `/doctor-dashboard/${hash}`
+      } else {
+        alert('Login failed: ' + JSON.stringify(data))
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      alert('An error occurred')
+    }
     setIsLoading(false)
-    console.log("[v0] Doctor Login attempt:", { email, password })
-
-    // Generate a simple hash for the dynamic route
-    const hash = btoa(email).replace(/[^a-zA-Z0-9]/g, '').substring(0, 32)
-    window.location.href = `/doctor-dashboard/${hash}`
   }
 
   return (
@@ -92,15 +114,24 @@ export default function DoctorLoginPage() {
               <Label htmlFor="password" className="text-foreground">
                 Password
               </Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="bg-background/50 border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-primary/20"
-                required
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="bg-background/50 border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-primary/20 pr-10"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-muted-foreground hover:text-foreground"
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+              </div>
             </div>
 
             <div className="flex items-center justify-between">
