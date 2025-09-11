@@ -9,7 +9,8 @@ import { PatientRecords } from "@/components/dashboard/patient-records";
 import { PatientRecordings } from "@/components/dashboard/patient-recordings";
 import { PatientChat } from "@/components/dashboard/patient-chat";
 import { getDoctorSidebarLinks, DoctorLogo, DoctorLogoIcon } from "@/components/dashboard/doctor-sidebar";
-import { API_BASE_URL } from "@/lib/config";
+import Protected from "@/components/auth/Protected";
+import { API_BASE_URL, MEDIA_BASE_URL } from "@/lib/config";
 import { useParams } from "next/navigation";
 import { Stethoscope } from "lucide-react";
 
@@ -189,6 +190,7 @@ export default function DoctorDashboard() {
   }
 
   return (
+  <Protected>
     <div
       className={cn(
         "mx-auto flex w-full flex-1 flex-col overflow-auto md:overflow-hidden rounded-md border border-neutral-200 bg-gray-100 md:flex-row dark:border-neutral-700 dark:bg-neutral-800",
@@ -211,15 +213,15 @@ export default function DoctorDashboard() {
                 link={{
                   label: open ? (doctorProfile.name || doctorProfile.user?.email || "Doctor") : "",
                   href: "#",
-                  icon: doctorProfile.photo_url ? (
-                    <img
-                      src={`${API_BASE_URL}${doctorProfile.photo_url}`}
-                      className="h-7 w-7 shrink-0 rounded-full"
-                      width={28}
-                      height={28}
-                      alt="Doctor Avatar"
-                    />
-                  ) : (
+                   icon: doctorProfile.photo_url ? (
+                     <img
+                       src={`${MEDIA_BASE_URL}${doctorProfile.photo_url}`}
+                       className="h-7 w-7 shrink-0 rounded-full"
+                       width={28}
+                       height={28}
+                       alt="Doctor Avatar"
+                     />
+                   ) : (
                     <div className="h-7 w-7 shrink-0 rounded-full bg-blue-500 flex items-center justify-center">
                       <Stethoscope className="h-4 w-4 text-white" />
                     </div>
@@ -239,6 +241,7 @@ export default function DoctorDashboard() {
         onSavePrescription={handleSavePrescription}
       />
     </div>
+  </Protected>
   );
 }
 

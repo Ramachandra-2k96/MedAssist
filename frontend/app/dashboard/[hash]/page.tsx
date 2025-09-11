@@ -10,6 +10,7 @@ import { Chatbot } from "@/components/dashboard/chatbot";
 import { DoctorRecordings } from "@/components/dashboard/doctor-recordings";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { getUserSidebarLinks, Logo, LogoIcon } from "@/components/dashboard/user-sidebar";
+import Protected from "@/components/auth/Protected";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
@@ -20,13 +21,14 @@ export default function UserDashboard() {
   const links = getUserSidebarLinks(hash);
   const [open, setOpen] = useState(false);
   return (
+    <Protected>
     <div
       className={cn(
         "mx-auto flex w-full flex-1 flex-col overflow-auto md:overflow-hidden rounded-md border border-neutral-200 bg-gray-100 md:flex-row dark:border-neutral-700 dark:bg-neutral-800",
         "h-screen",
       )}
     >
-      <Sidebar open={open} setOpen={setOpen}>
+  <Sidebar open={open} setOpen={setOpen}>
         <SidebarBody className="justify-between gap-10">
           <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
             {open ? <Logo /> : <LogoIcon />}
@@ -57,6 +59,7 @@ export default function UserDashboard() {
       </Sidebar>
       <UserDashboardContent />
     </div>
+    </Protected>
   );
 }
 // Dummy dashboard component with content

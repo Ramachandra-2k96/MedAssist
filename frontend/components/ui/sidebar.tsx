@@ -1,5 +1,6 @@
 "use client";
 import { cn } from "@/lib/utils";
+import { API_BASE_URL } from "@/lib/config"
 import React, { useState, createContext, useContext } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { IconMenu2, IconX } from "@tabler/icons-react";
@@ -9,6 +10,7 @@ interface Links {
   label: string;
   href: string;
   icon: React.JSX.Element | React.ReactNode;
+  logout?: boolean;
 }
 
 interface SidebarContextProps {
@@ -155,6 +157,8 @@ export const MobileSidebar = ({
   );
 };
 
+import { logoutAndRedirect } from "@/lib/auth"
+
 export const SidebarLink = ({
   link,
   className,
@@ -164,9 +168,31 @@ export const SidebarLink = ({
   className?: string;
 }) => {
   const { open, animate } = useSidebar();
+
+  const handleClick = (e: React.MouseEvent) => {
+    if (link.logout) {
+      e.preventDefault();
+      const isDoctor = window.location.pathname.includes('/doctor-dashboard')
+      try {
+        const refresh = localStorage.getItem('refresh_token')
+        if (refresh) {
+          // try to inform backend to blacklist the refresh token
+          const base = API_BASE_URL || 'http://127.0.0.1:8000/api'
+          fetch(`${base}/logout/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refresh })
+          }).catch(() => {})
+        }
+      } catch {}
+      logoutAndRedirect(isDoctor)
+    }
+  }
+
   return (
     <Link
       href={link.href}
+      onClick={handleClick}
       className={cn(
         "flex items-center justify-start gap-2  group/sidebar py-2",
         className

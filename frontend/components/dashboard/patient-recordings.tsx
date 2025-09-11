@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Trash2, Play, Pause, FileAudio, Languages, Volume2, Mic, MicOff } from "lucide-react"
-import { API_BASE_URL } from "@/lib/config"
+import { API_BASE_URL, MEDIA_BASE_URL } from "@/lib/config"
 import SpeechRecognition, { useSpeechRecognition } from "react-speech-recognition"
 
 interface Recording {
@@ -262,8 +262,8 @@ export function PatientRecordings({ patientId, patientName }: PatientRecordingsP
     if (playingId && audioRefs.current[playingId]) audioRefs.current[playingId]?.pause()
 
     // create audio element if needed
-    if (!audioRefs.current[id]) {
-      const a = new Audio(`${API_BASE_URL}${rec.audio_file}`)
+  if (!audioRefs.current[id]) {
+  const a = new Audio(`${MEDIA_BASE_URL}${rec.audio_file}`)
       audioRefs.current[id] = a
       a.addEventListener('timeupdate', () => {
         const pct = a.duration ? (a.currentTime / a.duration) * 100 : 0

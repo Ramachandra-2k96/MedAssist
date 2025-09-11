@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { API_BASE_URL } from "@/lib/config"
+import { API_BASE_URL, MEDIA_BASE_URL } from "@/lib/config"
 import { Trash2, Upload } from "lucide-react"
 
 interface Record {
@@ -170,7 +170,7 @@ export function PatientRecords({ patientId, patientName }: PatientRecordsProps) 
                 <p className="font-medium">{record.title}</p>
                 <p className="text-sm text-muted-foreground">{record.type} - {new Date(record.uploaded_at).toLocaleDateString()} (by {record.uploaded_by})</p>
                 {record.file && (
-                  <a href={`${API_BASE_URL}${record.file}`} target="_blank" rel="noopener noreferrer" className="text-blue-500 text-sm">
+                  <a href={`${MEDIA_BASE_URL}${record.file}`} target="_blank" rel="noopener noreferrer" className="text-blue-500 text-sm">
                     View File
                   </a>
                 )}

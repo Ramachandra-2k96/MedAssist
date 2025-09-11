@@ -34,6 +34,8 @@ export const getDoctorSidebarLinks = (hash: string) => [
     icon: (
       <IconArrowLeft className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
     ),
+    // special: instruct consumers to treat this as a logout action
+    logout: true,
   },
 ];
 
