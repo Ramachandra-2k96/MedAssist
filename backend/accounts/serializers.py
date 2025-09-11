@@ -39,10 +39,17 @@ class ProfileSerializer(serializers.ModelSerializer):
 class DoctorPatientSerializer(serializers.ModelSerializer):
     doctor = serializers.StringRelatedField()
     patient = UserSerializer()
+    patient_name = serializers.SerializerMethodField()
 
     class Meta:
         model = DoctorPatient
-        fields = ('id', 'doctor', 'patient', 'added_at')
+        fields = ('id', 'doctor', 'patient', 'patient_name', 'added_at')
+
+    def get_patient_name(self, obj):
+        try:
+            return obj.patient.profile.name or obj.patient.username
+        except Exception:
+            return getattr(obj.patient, 'username', None)
 
 class RecordSerializer(serializers.ModelSerializer):
     class Meta:

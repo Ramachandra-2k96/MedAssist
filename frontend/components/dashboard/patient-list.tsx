@@ -125,25 +125,13 @@ export function PatientList({ patients, onSelectPatient, onAddPatient }: Patient
                     <h3 className="font-semibold">{patient.name}</h3>
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
-                        <Phone className="h-3 w-3" />
-                        {patient.phone}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Mail className="h-3 w-3" />
-                        {patient.email}
+                        <span className="text-xs text-muted-foreground">ID: {patient.id}</span>
                       </div>
                     </div>
                     <p className="text-sm text-muted-foreground">Last visit: {patient.lastVisit}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge variant={patient.status === "active" ? "default" : "secondary"}>
-                    {patient.status}
-                  </Badge>
-                  <div className="text-right">
-                    <p className="text-sm font-medium">{patient.adherence}%</p>
-                    <p className="text-xs text-muted-foreground">Adherence</p>
-                  </div>
                   <Button variant="outline" onClick={() => onSelectPatient(patient)}>
                     View
                   </Button>

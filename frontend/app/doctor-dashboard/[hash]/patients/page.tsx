@@ -92,12 +92,9 @@ export default function PatientsPage() {
           .filter((dp: any) => dp.patient && dp.patient.id)
           .map((dp: any) => ({
             id: dp.patient.id?.toString() || '',
-            name: dp.patient.profile?.name || dp.patient.username || 'Unknown',
-            phone: '+1234567890',
-            email: dp.patient.email || '',
-            lastVisit: dp.added_at?.split('T')[0] || '',
-            status: 'active' as const,
-            adherence: 85,
+            name: dp.patient_name || dp.patient.profile?.name || dp.patient.username || 'Unknown',
+            phone: dp.patient.id?.toString() || '',
+            email: '',
           }))
           .filter((patient: Patient) => patient.id && patient.name);
         setPatients(formattedPatients);
