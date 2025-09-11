@@ -5,8 +5,18 @@ from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.models import User, Group
-from .serializers import SignupSerializer, LoginSerializer, ProfileSerializer, DoctorPatientSerializer, RecordSerializer, AudioRecordingSerializer, ChatMessageSerializer, PrescriptionSerializer
-from .models import DoctorPatient, Record, AudioRecording, ChatMessage, Prescription
+from .serializers import (
+    SignupSerializer,
+    LoginSerializer,
+    ProfileSerializer,
+    DoctorPatientSerializer,
+    RecordSerializer,
+    AudioRecordingSerializer,
+    ChatMessageSerializer,
+    PrescriptionSerializer,
+    DoctorBasicSerializer,
+)
+from .models import DoctorPatient, Record, AudioRecording, ChatMessage, Prescription, Profile
 from django.db.models import Q
 import os
 
@@ -267,6 +277,223 @@ class DoctorProfileView(APIView):
             return Response({'error': 'Only doctors can access this'}, status=status.HTTP_403_FORBIDDEN)
         serializer = ProfileSerializer(request.user.profile)
         return Response(serializer.data)
+
+
+class PatientDashboardDataView(APIView):
+    """Aggregate fetch for a patient to view medicines (prescriptions), records, audio and chat per doctor.
+
+    Query params:
+      doctor_id (optional) -> restrict to a single doctor the patient is linked with.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not request.user.groups.filter(name='Patient').exists():
+            return Response({'error': 'Only patients can access this'}, status=status.HTTP_403_FORBIDDEN)
+        doctor_id = request.query_params.get('doctor_id')
+        doctor_links = DoctorPatient.objects.filter(patient=request.user)
+        if doctor_id:
+            doctor_links = doctor_links.filter(doctor_id=doctor_id)
+        doctor_ids = list(doctor_links.values_list('doctor_id', flat=True))
+        # Prescriptions (medicines)
+        prescriptions = Prescription.objects.filter(patient=request.user, doctor_id__in=doctor_ids).order_by('-created_at')
+        prescription_data = PrescriptionSerializer(prescriptions, many=True).data
+        # Records (both doctor and patient uploaded)
+        records = Record.objects.filter(patient=request.user, doctor_id__in=doctor_ids).order_by('-uploaded_at')
+        record_data = RecordSerializer(records, many=True).data
+        # Audio recordings
+        audio = AudioRecording.objects.filter(patient=request.user, doctor_id__in=doctor_ids).order_by('-recorded_at')
+        audio_data = AudioRecordingSerializer(audio, many=True).data
+        # Chat messages (optionally per doctor)
+        chat_query = ChatMessage.objects.filter(patient=request.user, doctor_id__in=doctor_ids).order_by('timestamp')
+        chat_data = ChatMessageSerializer(chat_query, many=True).data
+        return Response({
+            'prescriptions': prescription_data,
+            'records': record_data,
+            'audio_recordings': audio_data,
+            'chat': chat_data,
+            'doctor_ids': doctor_ids,
+        })
+
+
+class PatientRecordsManageView(APIView):
+    """Patient can list own records and upload new record (uploaded_by='patient'). Cannot delete others' records."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not request.user.groups.filter(name='Patient').exists():
+            return Response({'error': 'Only patients can access this'}, status=status.HTTP_403_FORBIDDEN)
+        doctor_id = request.query_params.get('doctor_id')
+        qs = Record.objects.filter(patient=request.user)
+        if doctor_id:
+            qs = qs.filter(doctor_id=doctor_id)
+        data = RecordSerializer(qs.order_by('-uploaded_at'), many=True).data
+        return Response(data)
+
+    def post(self, request):
+        if not request.user.groups.filter(name='Patient').exists():
+            return Response({'error': 'Only patients can access this'}, status=status.HTTP_403_FORBIDDEN)
+        doctor_id = request.data.get('doctor') or request.data.get('doctor_id')
+        if not doctor_id:
+            return Response({'error': 'doctor field required'}, status=status.HTTP_400_BAD_REQUEST)
+        # ensure relation exists
+        if not DoctorPatient.objects.filter(doctor_id=doctor_id, patient=request.user).exists():
+            return Response({'error': 'Not linked to doctor'}, status=status.HTTP_403_FORBIDDEN)
+        data = request.data.copy()
+        data['patient'] = request.user.id
+        data['uploaded_by'] = 'patient'
+        serializer = RecordSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request):
+        if not request.user.groups.filter(name='Patient').exists():
+            return Response({'error': 'Only patients can access this'}, status=status.HTTP_403_FORBIDDEN)
+        record_id = request.data.get('record_id')
+        if not record_id:
+            return Response({'error': 'record_id required'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            record = Record.objects.get(id=record_id, patient=request.user)
+            if record.uploaded_by != 'patient':
+                return Response({'error': 'Cannot delete doctor uploaded record'}, status=status.HTTP_403_FORBIDDEN)
+            # remove file
+            if record.file:
+                file_path = record.file.path
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+            record.delete()
+            return Response({'message': 'Deleted'}, status=status.HTTP_204_NO_CONTENT)
+        except Record.DoesNotExist:
+            return Response({'error': 'Record not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+class PatientAudioManageView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not request.user.groups.filter(name='Patient').exists():
+            return Response({'error': 'Only patients can access this'}, status=status.HTTP_403_FORBIDDEN)
+        doctor_id = request.query_params.get('doctor_id')
+        qs = AudioRecording.objects.filter(patient=request.user)
+        if doctor_id:
+            qs = qs.filter(doctor_id=doctor_id)
+        data = AudioRecordingSerializer(qs.order_by('-recorded_at'), many=True).data
+        return Response(data)
+
+    def post(self, request):
+        if not request.user.groups.filter(name='Patient').exists():
+            return Response({'error': 'Only patients can access this'}, status=status.HTTP_403_FORBIDDEN)
+        doctor_id = request.data.get('doctor') or request.data.get('doctor_id')
+        if not doctor_id:
+            return Response({'error': 'doctor field required'}, status=status.HTTP_400_BAD_REQUEST)
+        if not DoctorPatient.objects.filter(doctor_id=doctor_id, patient=request.user).exists():
+            return Response({'error': 'Not linked to doctor'}, status=status.HTTP_403_FORBIDDEN)
+        data = request.data.copy()
+        data['patient'] = request.user.id
+        data['uploaded_by'] = 'patient'
+        serializer = AudioRecordingSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request):
+        if not request.user.groups.filter(name='Patient').exists():
+            return Response({'error': 'Only patients can access this'}, status=status.HTTP_403_FORBIDDEN)
+        rec_id = request.data.get('recording_id')
+        if not rec_id:
+            return Response({'error': 'recording_id required'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            rec = AudioRecording.objects.get(id=rec_id, patient=request.user)
+            if rec.uploaded_by != 'patient':
+                return Response({'error': 'Cannot delete doctor uploaded recording'}, status=status.HTTP_403_FORBIDDEN)
+            if rec.audio_file:
+                fp = rec.audio_file.path
+                if os.path.exists(fp):
+                    os.remove(fp)
+            rec.delete()
+            return Response({'message': 'Deleted'}, status=status.HTTP_204_NO_CONTENT)
+        except AudioRecording.DoesNotExist:
+            return Response({'error': 'Recording not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+class PatientChatManageView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not request.user.groups.filter(name='Patient').exists():
+            return Response({'error': 'Only patients can access this'}, status=status.HTTP_403_FORBIDDEN)
+        doctor_id = request.query_params.get('doctor_id')
+        qs = ChatMessage.objects.filter(patient=request.user)
+        if doctor_id:
+            qs = qs.filter(doctor_id=doctor_id)
+        data = ChatMessageSerializer(qs.order_by('timestamp'), many=True).data
+        return Response(data)
+
+    def post(self, request):
+        if not request.user.groups.filter(name='Patient').exists():
+            return Response({'error': 'Only patients can access this'}, status=status.HTTP_403_FORBIDDEN)
+        # message can be for a specific doctor or broadcast to all linked doctors
+        doctor_id = request.data.get('doctor') or request.data.get('doctor_id')
+        text = request.data.get('text') or request.data.get('message')
+        if not text:
+            return Response({'error': 'text required'}, status=status.HTTP_400_BAD_REQUEST)
+        created = []
+        if doctor_id:
+            if not DoctorPatient.objects.filter(doctor_id=doctor_id, patient=request.user).exists():
+                return Response({'error': 'Not linked to doctor'}, status=status.HTTP_403_FORBIDDEN)
+            serializer = ChatMessageSerializer(data={
+                'doctor': doctor_id,
+                'patient': request.user.id,
+                'text': text,
+                'sender': 'patient'
+            })
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            created.append(serializer.data)
+        else:
+            # broadcast
+            links = DoctorPatient.objects.filter(patient=request.user)
+            for link in links:
+                serializer = ChatMessageSerializer(data={
+                    'doctor': link.doctor_id,
+                    'patient': request.user.id,
+                    'text': text,
+                    'sender': 'patient'
+                })
+                if serializer.is_valid():
+                    serializer.save()
+                    created.append(serializer.data)
+        return Response(created, status=status.HTTP_201_CREATED)
+
+
+class PatientPrescriptionsViewPublic(APIView):
+    """Patient can view prescriptions. No create/delete (doctor only)."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not request.user.groups.filter(name='Patient').exists():
+            return Response({'error': 'Only patients can access this'}, status=status.HTTP_403_FORBIDDEN)
+        doctor_id = request.query_params.get('doctor_id')
+        qs = Prescription.objects.filter(patient=request.user)
+        if doctor_id:
+            qs = qs.filter(doctor_id=doctor_id)
+        data = PrescriptionSerializer(qs.order_by('-created_at'), many=True).data
+        return Response(data)
+
+
+class PatientDoctorsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not request.user.groups.filter(name='Patient').exists():
+            return Response({'error': 'Only patients can access this'}, status=status.HTTP_403_FORBIDDEN)
+        doctor_ids = DoctorPatient.objects.filter(patient=request.user).values_list('doctor_id', flat=True)
+        doctors = User.objects.filter(id__in=doctor_ids)
+        data = DoctorBasicSerializer(doctors, many=True).data
+        return Response(data)
 
 
 class LogoutView(APIView):

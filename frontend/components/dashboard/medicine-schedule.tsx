@@ -11,6 +11,7 @@ interface Medicine {
   color: string
   shape: string
   emoji: string
+  doctorName?: string
 }
 
 interface MedicineScheduleProps {
@@ -35,6 +36,9 @@ export function MedicineSchedule({ medicines }: MedicineScheduleProps) {
                 <div>
                   <h3 className="font-semibold">{medicine.name}</h3>
                   <p className="text-sm text-muted-foreground">{medicine.dosage}</p>
+                  {medicine.doctorName && (
+                    <p className="text-xs text-muted-foreground">{medicine.doctorName.startsWith('Dr.') ? medicine.doctorName : `Dr. ${medicine.doctorName}`}</p>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-2">

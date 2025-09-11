@@ -14,9 +14,7 @@ import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { PatientList } from "@/components/dashboard/patient-list";
-import { PatientRecords } from "@/components/dashboard/patient-records";
-import { PatientRecordings } from "@/components/dashboard/patient-recordings";
-import { PatientChat } from "@/components/dashboard/patient-chat";
+import PatientView from "@/components/dashboard/patient-view";
 import { API_BASE_URL, MEDIA_BASE_URL } from "@/lib/config";
 import Protected from "@/components/auth/Protected";
 import { PrescriptionEditor } from "@/components/dashboard/prescription-editor";
@@ -213,24 +211,14 @@ export default function PatientsPage() {
         <div className="flex h-full w-full flex-1 flex-col gap-6 rounded-tl-2xl border border-neutral-200 bg-white p-6 dark:border-neutral-700 dark:bg-neutral-900 overflow-y-auto">
           {!selectedPatient ? (
             <PatientList patients={patients} onSelectPatient={handleSelectPatient} onAddPatient={handleAddPatient} />
-          ) : (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold">Patient: {selectedPatient.name}</h2>
-                <Button onClick={() => setSelectedPatient(null)}>Back to Patients</Button>
-              </div>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <PatientRecords patientId={selectedPatient.id} patientName={selectedPatient.name} />
-                <PatientRecordings patientId={selectedPatient.id} patientName={selectedPatient.name} />
-              </div>
-              <PatientChat patientId={selectedPatient.id} patientName={selectedPatient.name} />
-              <PrescriptionEditor
-                patientId={selectedPatient.id}
-                patientName={selectedPatient.name}
-                onSave={handleSavePrescription}
-              />
-            </div>
-          )}
+          ) : selectedPatient && selectedPatient.id && selectedPatient.id !== 'undefined' && selectedPatient.name ? (
+            <PatientView
+              patientId={selectedPatient.id}
+              patientName={selectedPatient.name}
+              onBack={() => setSelectedPatient(null)}
+              onSavePrescription={handleSavePrescription}
+            />
+          ) : null}
         </div>
       </div>
   </div>

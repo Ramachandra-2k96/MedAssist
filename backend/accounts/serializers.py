@@ -52,25 +52,78 @@ class DoctorPatientSerializer(serializers.ModelSerializer):
             return getattr(obj.patient, 'username', None)
 
 class RecordSerializer(serializers.ModelSerializer):
+    doctor_name = serializers.SerializerMethodField()
     class Meta:
         model = Record
-        fields = ('id', 'doctor', 'patient', 'type', 'title', 'file', 'uploaded_at', 'uploaded_by')
+        fields = ('id', 'doctor', 'doctor_name', 'patient', 'type', 'title', 'file', 'uploaded_at', 'uploaded_by')
+
+    def get_doctor_name(self, obj):
+        try:
+            return obj.doctor.profile.name or obj.doctor.get_full_name() or obj.doctor.username
+        except Exception:
+            return None
 
 class AudioRecordingSerializer(serializers.ModelSerializer):
+    duration = serializers.SerializerMethodField()
+    doctor_name = serializers.SerializerMethodField()
     class Meta:
         model = AudioRecording
-        fields = ('id', 'doctor', 'patient', 'title', 'audio_file', 'transcription', 'language', 'recorded_at', 'uploaded_by')
+        fields = ('id', 'doctor', 'doctor_name', 'patient', 'title', 'audio_file', 'transcription', 'language', 'recorded_at', 'uploaded_by', 'duration')
+
+    def get_duration(self, obj):
+        return None  # placeholder
+
+    def get_doctor_name(self, obj):
+        try:
+            return obj.doctor.profile.name or obj.doctor.get_full_name() or obj.doctor.username
+        except Exception:
+            return None
 
 class ChatMessageSerializer(serializers.ModelSerializer):
     text = serializers.CharField(source='message')
+    doctor_name = serializers.SerializerMethodField()
     class Meta:
         model = ChatMessage
-        fields = ('id', 'doctor', 'patient', 'text', 'timestamp', 'sender')
+        fields = ('id', 'doctor', 'doctor_name', 'patient', 'text', 'timestamp', 'sender')
+
+    def get_doctor_name(self, obj):
+        try:
+            return obj.doctor.profile.name or obj.doctor.get_full_name() or obj.doctor.username
+        except Exception:
+            return None
 
 class PrescriptionSerializer(serializers.ModelSerializer):
+    doctor_name = serializers.SerializerMethodField()
     class Meta:
         model = Prescription
-        fields = ('id', 'doctor', 'patient', 'medicines', 'notes', 'created_at')
+        fields = ('id', 'doctor', 'doctor_name', 'patient', 'medicines', 'notes', 'created_at')
+
+    def get_doctor_name(self, obj):
+        try:
+            return obj.doctor.profile.name or obj.doctor.get_full_name() or obj.doctor.username
+        except Exception:
+            return None
+
+class DoctorBasicSerializer(serializers.ModelSerializer):
+    name = serializers.SerializerMethodField()
+    photo_url = serializers.SerializerMethodField()
+    class Meta:
+        model = User
+        fields = ('id', 'name', 'email', 'photo_url')
+
+    def get_name(self, obj):
+        try:
+            return obj.profile.name or obj.get_full_name() or obj.username
+        except Exception:
+            return obj.username
+
+    def get_photo_url(self, obj):
+        try:
+            if obj.profile.photo:
+                return obj.profile.photo.url
+        except Exception:
+            return None
+        return None
 
 class SignupSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)

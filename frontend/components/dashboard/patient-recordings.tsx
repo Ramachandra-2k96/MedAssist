@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Trash2, Play, Pause, FileAudio, Languages, Volume2, Mic, MicOff } from "lucide-react"
-import { API_BASE_URL, MEDIA_BASE_URL } from "@/lib/config"
+import { API_BASE_URL } from "@/lib/config"
+import { buildMediaUrl } from "@/lib/media"
 import SpeechRecognition, { useSpeechRecognition } from "react-speech-recognition"
 
 interface Recording {
@@ -263,7 +264,7 @@ export function PatientRecordings({ patientId, patientName }: PatientRecordingsP
 
     // create audio element if needed
   if (!audioRefs.current[id]) {
-  const a = new Audio(`${MEDIA_BASE_URL}${rec.audio_file}`)
+  const a = new Audio(buildMediaUrl(rec.audio_file))
       audioRefs.current[id] = a
       a.addEventListener('timeupdate', () => {
         const pct = a.duration ? (a.currentTime / a.duration) * 100 : 0
@@ -326,9 +327,6 @@ export function PatientRecordings({ patientId, patientName }: PatientRecordingsP
               <Button onClick={() => setShowLanguageSelect(true)} className="flex-1">
                 <Mic className="w-4 h-4 mr-2" />
                 Record (Language: {selectedLanguage.toUpperCase()})
-              </Button>
-              <Button variant="outline" onClick={() => { /* reserved for future */ }}>
-                Upload
               </Button>
             </div>
           )}

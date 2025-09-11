@@ -4,10 +4,7 @@ import { Sidebar, SidebarBody, SidebarLink } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { PatientList } from "@/components/dashboard/patient-list";
-import { PrescriptionEditor } from "@/components/dashboard/prescription-editor";
-import { PatientRecords } from "@/components/dashboard/patient-records";
-import { PatientRecordings } from "@/components/dashboard/patient-recordings";
-import { PatientChat } from "@/components/dashboard/patient-chat";
+import PatientView from "@/components/dashboard/patient-view";
 import { getDoctorSidebarLinks, DoctorLogo, DoctorLogoIcon } from "@/components/dashboard/doctor-sidebar";
 import Protected from "@/components/auth/Protected";
 import { API_BASE_URL, MEDIA_BASE_URL } from "@/lib/config";
@@ -266,25 +263,16 @@ const DoctorDashboardContent = ({
       <div className="flex h-full w-full flex-1 flex-col gap-6 rounded-tl-2xl border border-neutral-200 bg-white p-6 dark:border-neutral-700 dark:bg-neutral-900 overflow-y-auto">
         {!selectedPatient ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <PatientList patients={patients} onSelectPatient={onSelectPatient} onAddPatient={onAddPatient} />
+            <PatientList patients={patients} onSelectPatient={onSelectPatient} onAddPatient={onAddPatient} />
           </div>
         ) : selectedPatient && selectedPatient.id && selectedPatient.id !== 'undefined' && selectedPatient.name ? (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold">Patient: {selectedPatient.name}</h2>
-              <Button onClick={() => onSelectPatient(null)}>Back to Patients</Button>
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <PatientRecords patientId={selectedPatient.id} patientName={selectedPatient.name} />
-              <PatientRecordings patientId={selectedPatient.id} patientName={selectedPatient.name} />
-            </div>
-            <PatientChat patientId={selectedPatient.id} patientName={selectedPatient.name} />
-            <PrescriptionEditor
-              patientName={selectedPatient.name}
-              patientId={selectedPatient.id}
-              onSave={onSavePrescription}
-            />
-          </div>
+          <PatientView
+            patientId={selectedPatient.id}
+            patientName={selectedPatient.name}
+            onBack={() => onSelectPatient(null)}
+            onRecordingComplete={onRecordingComplete}
+            onSavePrescription={onSavePrescription}
+          />
         ) : null}
       </div>
     </div>

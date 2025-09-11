@@ -1,89 +1,29 @@
 "use client";
-import React, { useState } from "react";
-import { Sidebar, SidebarBody, SidebarLink } from "@/components/ui/sidebar";
-import { cn } from "@/lib/utils";
-import { Chatbot } from "@/components/dashboard/chatbot";
-import { getUserSidebarLinks, Logo, LogoIcon } from "@/components/dashboard/user-sidebar";
-import { useParams } from "next/navigation";
+import React, { useEffect, useState } from "react";
+import { PatientChatView } from "@/components/dashboard/patient-chat-view";
+import { PatientDashboardLayout } from "@/components/dashboard/patient-dashboard-layout";
+import { API_BASE_URL } from "@/lib/config";
+import { Button } from "@/components/ui/button";
 
-export default function ChatPage() {
-  const params = useParams();
-  const hash = params.hash as string;
-
-  const links = getUserSidebarLinks(hash);
-  const [open, setOpen] = React.useState(false);
-
-  const [chatMessages, setChatMessages] = useState<{ id: string; text: string; sender: "user" | "bot"; timestamp: Date }[]>([
-    {
-      id: "1",
-      text: "Hello! How can I help you with your health today?",
-      sender: "bot",
-      timestamp: new Date()
-    }
-  ]);
-
-  const handleSendMessage = (message: string) => {
-    const newMessage = {
-      id: Date.now().toString(),
-      text: message,
-      sender: "user" as const,
-      timestamp: new Date()
-    };
-    setChatMessages(prev => [...prev, newMessage]);
-
-    // Simulate bot response
-    setTimeout(() => {
-      const botResponse = {
-        id: (Date.now() + 1).toString(),
-        text: "Thank you for your question. Please consult with your doctor for personalized medical advice.",
-        sender: "bot" as const,
-        timestamp: new Date()
-      };
-      setChatMessages(prev => [...prev, botResponse]);
-    }, 1000);
-  };
-
+export default function ChatPage(){
+  const [linkedDoctors, setLinkedDoctors] = useState<any[]>([]);
+  const [selectedDoctorId, setSelectedDoctorId] = useState<number|null>(null);
+  useEffect(()=>{ (async()=>{
+    try { const token = localStorage.getItem('access_token'); if(!token) return; const resp = await fetch(`${API_BASE_URL}/patient/doctors/`, { headers:{'Authorization':`Bearer ${token}`} }); if(resp.ok){ const data = await resp.json(); setLinkedDoctors(data); if(!selectedDoctorId && data.length) setSelectedDoctorId(data[0].id); } } catch(e){ console.error(e)}
+  })(); }, []);
   return (
-    <div
-      className={cn(
-        "mx-auto flex w-full flex-1 flex-col overflow-auto md:overflow-hidden rounded-md border border-neutral-200 bg-gray-100 md:flex-row dark:border-neutral-700 dark:bg-neutral-800",
-        "h-screen",
-      )}
-    >
-      <Sidebar open={open} setOpen={setOpen}>
-        <SidebarBody className="justify-between gap-10">
-          <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
-            {open ? <Logo /> : <LogoIcon />}
-            <div className="mt-8 flex flex-col gap-2">
-              {links.map((link, idx) => (
-                <SidebarLink key={idx} link={link} />
-              ))}
-            </div>
+    <PatientDashboardLayout>
+      <div className="space-y-4">
+        <div className="p-4 border rounded-lg space-y-2">
+          <p className="text-sm font-semibold">Select Doctor</p>
+          <div className="flex flex-wrap gap-2">
+            {linkedDoctors.map(d=> (
+              <Button key={d.id} size="sm" variant={selectedDoctorId===d.id? 'default':'outline'} onClick={()=> setSelectedDoctorId(d.id)}>{d.name}</Button>
+            ))}
           </div>
-          <div>
-            <SidebarLink
-              link={{
-                label: "Patient Name",
-                href: "#",
-                icon: (
-                  <img
-                    src="https://assets.aceternity.com/manu.png"
-                    className="h-7 w-7 shrink-0 rounded-full"
-                    width={50}
-                    height={50}
-                    alt="Avatar"
-                  />
-                ),
-              }}
-            />
-          </div>
-        </SidebarBody>
-      </Sidebar>
-      <div className="flex flex-1">
-        <div className="flex h-full w-full flex-1 flex-col gap-6 rounded-tl-2xl border border-neutral-200 bg-white p-6 dark:border-neutral-700 dark:bg-neutral-900 overflow-y-auto">
-          <Chatbot messages={chatMessages} onSendMessage={handleSendMessage} />
         </div>
+        <PatientChatView doctorId={selectedDoctorId} />
       </div>
-    </div>
-  );
+    </PatientDashboardLayout>
+  )
 }

@@ -40,15 +40,16 @@ export function HealthRecords({ records, onView, onDownload }: HealthRecordsProp
                 </div>
                 <p className="text-sm text-muted-foreground">{record.date}</p>
                 {record.doctor && (
-                  <p className="text-sm text-muted-foreground">Dr. {record.doctor}</p>
+                  <p className="text-sm text-muted-foreground">{record.doctor?.startsWith?.('Dr.') ? record.doctor : `Dr. ${record.doctor}`}</p>
                 )}
               </div>
               <div className="flex gap-2">
-                {onView && (
-                  <Button variant="outline" size="sm" onClick={() => onView(record)}>
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                )}
+                <Button variant="outline" size="sm" onClick={() => {
+                  if (record.fileUrl) window.open(record.fileUrl, '_blank')
+                  else if (onView) onView(record)
+                }}>
+                  <Eye className="h-4 w-4" />
+                </Button>
                 {onDownload && record.fileUrl && (
                   <Button variant="outline" size="sm" onClick={() => onDownload(record)}>
                     <Download className="h-4 w-4" />

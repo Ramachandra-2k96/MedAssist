@@ -1,183 +1,163 @@
 "use client";
-import React, { useState } from "react";
-import { Sidebar, SidebarBody, SidebarLink } from "@/components/ui/sidebar";
-import { motion } from "motion/react";
+import React, { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { MedicineSchedule } from "@/components/dashboard/medicine-schedule";
 import { AppointmentReminders } from "@/components/dashboard/appointment-reminders";
-import { HealthRecords } from "@/components/dashboard/health-records";
-import { Chatbot } from "@/components/dashboard/chatbot";
-import { DoctorRecordings } from "@/components/dashboard/doctor-recordings";
+// Removed HealthRecords & Chatbot (now separate specialized components)
+// import { DoctorRecordings } from "@/components/dashboard/doctor-recordings";
+import { PatientAudioSection } from "@/components/dashboard/patient-audio-section";
+import { PatientSelfRecords } from "@/components/dashboard/patient-self-records";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { PatientChatView } from "@/components/dashboard/patient-chat-view";
+import { API_BASE_URL } from "@/lib/config";
 import { ThemeSwitcher } from "@/components/theme-switcher";
-import { getUserSidebarLinks, Logo, LogoIcon } from "@/components/dashboard/user-sidebar";
+import { PatientDashboardLayout } from "@/components/dashboard/patient-dashboard-layout";
 import Protected from "@/components/auth/Protected";
-import Link from "next/link";
-import { useParams } from "next/navigation";
 
-export default function UserDashboard() {
-  const params = useParams();
-  const hash = params.hash as string;
-
-  const links = getUserSidebarLinks(hash);
-  const [open, setOpen] = useState(false);
-  return (
-    <Protected>
-    <div
-      className={cn(
-        "mx-auto flex w-full flex-1 flex-col overflow-auto md:overflow-hidden rounded-md border border-neutral-200 bg-gray-100 md:flex-row dark:border-neutral-700 dark:bg-neutral-800",
-        "h-screen",
-      )}
-    >
-  <Sidebar open={open} setOpen={setOpen}>
-        <SidebarBody className="justify-between gap-10">
-          <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
-            {open ? <Logo /> : <LogoIcon />}
-            <div className="mt-8 flex flex-col gap-2">
-              {links.map((link, idx) => (
-                <SidebarLink key={idx} link={link} />
-              ))}
-            </div>
-          </div>
-          <div>
-            <SidebarLink
-              link={{
-                label: "Patient Name",
-                href: "#",
-                icon: (
-                  <img
-                    src="https://assets.aceternity.com/manu.png"
-                    className="h-7 w-7 shrink-0 rounded-full"
-                    width={50}
-                    height={50}
-                    alt="Avatar"
-                  />
-                ),
-              }}
-            />
-          </div>
-        </SidebarBody>
-      </Sidebar>
-      <UserDashboardContent />
-    </div>
-    </Protected>
-  );
+export default function UserDashboard(){
+  return (<Protected><PatientDashboardLayout><UserDashboardContent /></PatientDashboardLayout></Protected>);
 }
 // Dummy dashboard component with content
 const UserDashboardContent = () => {
-  // Mock data
-  const medicines = [
-    {
-      name: "Paracetamol",
-      dosage: "500mg",
-      timing: "8:00 AM, 2:00 PM, 8:00 PM",
-      color: "#FF6B6B",
-      shape: "round",
-      emoji: "💊"
-    },
-    {
-      name: "Amoxicillin",
-      dosage: "250mg",
-      timing: "8:00 AM, 8:00 PM",
-      color: "#4ECDC4",
-      shape: "capsule",
-      emoji: "🧴"
-    }
-  ]
+  const [medicines, setMedicines] = useState<any[]>([])
+  // legacy aggregated records state kept for compatibility with existing mapping but not directly rendered
+  const [records, setRecords] = useState<any[]>([])
+  // const [doctorRecordings, setDoctorRecordings] = useState<any[]>([])
+  const [chatMessages, setChatMessages] = useState<{ id: string; text: string; sender: "user" | "bot" | "doctor"; timestamp: Date }[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selectedDoctorId, setSelectedDoctorId] = useState<number | null>(null)
+  const [linkedDoctors, setLinkedDoctors] = useState<any[]>([])
+  const [newRecordFile, setNewRecordFile] = useState<File | null>(null)
+  const [newRecordTitle, setNewRecordTitle] = useState("")
+  const [newRecordType, setNewRecordType] = useState("")
+  const [uploadingRecord, setUploadingRecord] = useState(false)
+  const [audioUploadBlob, setAudioUploadBlob] = useState<Blob | null>(null)
+  const [audioUploading, setAudioUploading] = useState(false)
 
-  const appointments = [
-    {
-      id: "1",
-      doctor: "Dr. Smith",
-      date: "2025-09-05",
-      time: "10:00 AM",
-      type: "General Checkup",
-      location: "City Hospital",
-      status: "upcoming" as const
-    },
-    {
-      id: "2",
-      doctor: "Dr. Johnson",
-      date: "2025-09-10",
-      time: "2:00 PM",
-      type: "Follow-up",
-      status: "upcoming" as const
-    }
-  ]
+  useEffect(() => {
+    fetchDashboard()
+  }, [selectedDoctorId])
 
-  const records = [
-    {
-      id: "1",
-      type: "Prescription",
-      title: "Blood Pressure Medication",
-      date: "2025-08-15",
-      doctor: "Dr. Smith"
-    },
-    {
-      id: "2",
-      type: "Lab Report",
-      title: "Blood Test Results",
-      date: "2025-08-10",
-      doctor: "Dr. Johnson"
-    }
-  ]
+  useEffect(() => { fetchDoctors() }, [])
 
-  const doctorRecordings = [
-    {
-      id: "1",
-      doctorName: "Smith",
-      title: "Consultation Notes",
-      date: "2025-08-15",
-      duration: "2:30"
-    },
-    {
-      id: "2",
-      doctorName: "Johnson",
-      title: "Follow-up Instructions",
-      date: "2025-08-10",
-      duration: "1:45"
-    }
-  ]
-
-  const [chatMessages, setChatMessages] = useState<{ id: string; text: string; sender: "user" | "bot"; timestamp: Date }[]>([
-    {
-      id: "1",
-      text: "Hello! How can I help you with your health today?",
-      sender: "bot",
-      timestamp: new Date()
-    }
-  ])
-
-  const handleSendMessage = (message: string) => {
-    const newMessage = {
-      id: Date.now().toString(),
-      text: message,
-      sender: "user" as const,
-      timestamp: new Date()
-    }
-    setChatMessages(prev => [...prev, newMessage])
-
-    // Simulate bot response
-    setTimeout(() => {
-      const botResponse = {
-        id: (Date.now() + 1).toString(),
-        text: "Thank you for your question. Please consult with your doctor for personalized medical advice.",
-        sender: "bot" as const,
-        timestamp: new Date()
+  const fetchDoctors = async () => {
+    try {
+      const token = localStorage.getItem('access_token')
+      if (!token) return
+      const resp = await fetch(`${API_BASE_URL}/patient/doctors/`, { headers: { 'Authorization': `Bearer ${token}` } })
+      if (resp.ok) {
+        const data = await resp.json()
+        setLinkedDoctors(data)
+        // Auto select first doctor if none chosen so user can immediately record / add records
+        if (!selectedDoctorId && data.length) {
+          setSelectedDoctorId(data[0].id)
+        }
       }
-      setChatMessages(prev => [...prev, botResponse])
-    }, 1000)
+    } catch(e){ console.error(e)}
   }
+
+  const fetchDashboard = async () => {
+    try {
+      const token = localStorage.getItem('access_token')
+      if (!token) return
+      const url = new URL(`${API_BASE_URL}/patient/dashboard/`)
+      if (selectedDoctorId) url.searchParams.set('doctor_id', String(selectedDoctorId))
+      const resp = await fetch(url.toString(), { headers: { 'Authorization': `Bearer ${token}` } })
+      if (resp.ok) {
+        const data = await resp.json()
+        // prescriptions -> transform into medicine schedule (flatten medicines with timing if present)
+        const medList: any[] = []
+        data.prescriptions.forEach((p: any) => {
+          (p.medicines || []).forEach((m: any) => {
+            medList.push({
+              name: m.name || 'Medicine',
+              dosage: m.dosage || '',
+              timing: m.frequency || 'N/A',
+              color: m.color || '#4ECDC4',
+              shape: 'round',
+              emoji: m.emoji || '💊',
+              doctorName: p.doctor_name
+            })
+          })
+        })
+        setMedicines(medList)
+        setRecords(data.records.map((r: any) => ({
+          id: String(r.id),
+          type: r.type,
+          title: r.title,
+          date: r.uploaded_at?.split('T')[0] || '',
+          doctor: r.doctor_name || 'Doctor',
+          fileUrl: r.file ? (r.file.startsWith('http') ? r.file : `${API_BASE_URL?.replace(/\/api\/?$/, '')}${r.file}`) : undefined
+        })))
+  // doctor recordings now fetched inside PatientAudioSection (combined list)
+        setChatMessages(data.chat.map((c: any) => ({
+          id: String(c.id),
+          text: c.text,
+            sender: c.sender === 'patient' ? 'user' : 'doctor',
+          timestamp: new Date(c.timestamp)
+        })))
+      }
+    } catch (e) {
+      console.error('dashboard fetch error', e)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSendMessage = async (message: string) => {
+    const local = { id: Date.now().toString(), text: message, sender: 'user' as const, timestamp: new Date() }
+    setChatMessages(prev => [...prev, local])
+    try {
+      const token = localStorage.getItem('access_token')
+      const resp = await fetch(`${API_BASE_URL}/patient/chat/`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: message, doctor: selectedDoctorId })
+      })
+      if (!resp.ok) throw new Error('send failed')
+    } catch (e) { console.error('chat send failed', e) }
+  }
+
+  const uploadRecord = async () => {
+    if (!newRecordFile || !selectedDoctorId) return
+    setUploadingRecord(true)
+    try {
+      const token = localStorage.getItem('access_token')
+      const fd = new FormData()
+      fd.append('doctor', String(selectedDoctorId))
+      fd.append('title', newRecordTitle || newRecordFile.name)
+      fd.append('type', newRecordType || 'General')
+      fd.append('file', newRecordFile)
+      const resp = await fetch(`${API_BASE_URL}/patient/records/`, { method:'POST', headers:{'Authorization':`Bearer ${token}`}, body: fd })
+      if (resp.ok) fetchDashboard()
+    } catch(e){ console.error(e)} finally { setUploadingRecord(false); setNewRecordFile(null); setNewRecordTitle(''); setNewRecordType('') }
+  }
+
+  // audio upload & recording handled in PatientAudioSection
 
   return (
     <div className="flex flex-1">
-      <div className="flex h-full w-full flex-1 flex-col gap-6 rounded-tl-2xl border border-neutral-200 bg-white p-6 dark:border-neutral-700 dark:bg-neutral-900 overflow-y-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <MedicineSchedule medicines={medicines} />
-          <AppointmentReminders appointments={appointments} />
+      <div className="flex h-full w-full flex-1 flex-col gap-6">
+        <div className="flex flex-wrap gap-2 mb-2">
+          {linkedDoctors.map(d => (
+            <Button key={d.id} size="sm" variant={selectedDoctorId===d.id? 'default':'outline'} onClick={()=> setSelectedDoctorId(d.id)}>
+              {d.name || 'Doctor'}
+            </Button>
+          ))}
+          {linkedDoctors.length>0 && (
+            <Button size="sm" variant={!selectedDoctorId? 'default':'outline'} onClick={()=> setSelectedDoctorId(null)}>All</Button>
+          )}
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <HealthRecords records={records} />
-          <DoctorRecordings recordings={doctorRecordings} />
+          <MedicineSchedule medicines={medicines} />
+          {/* Appointments mock retained as per instruction */}
+          <AppointmentReminders appointments={[]} />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <PatientAudioSection doctorId={selectedDoctorId} />
+          <PatientSelfRecords doctorId={selectedDoctorId} />
         </div>
       </div>
     </div>
