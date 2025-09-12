@@ -87,7 +87,8 @@ class PatientRecordsView(APIView):
             DoctorPatient.objects.get(doctor=request.user, patient=patient)
         except (User.DoesNotExist, DoctorPatient.DoesNotExist):
             return Response({'error': 'Patient not found or not associated'}, status=status.HTTP_404_NOT_FOUND)
-        records = Record.objects.filter(doctor=request.user, patient=patient)
+        # Show all records that belong to this patient, regardless of which doctor uploaded them
+        records = Record.objects.filter(patient=patient).order_by('-uploaded_at')
         serializer = RecordSerializer(records, many=True)
         return Response(serializer.data)
 
@@ -146,7 +147,8 @@ class PatientAudioRecordingsView(APIView):
             DoctorPatient.objects.get(doctor=request.user, patient=patient)
         except (User.DoesNotExist, DoctorPatient.DoesNotExist):
             return Response({'error': 'Patient not found or not associated'}, status=status.HTTP_404_NOT_FOUND)
-        recordings = AudioRecording.objects.filter(doctor=request.user, patient=patient)
+        # Show all audio recordings that belong to this patient, regardless of which doctor uploaded them
+        recordings = AudioRecording.objects.filter(patient=patient).order_by('-recorded_at')
         serializer = AudioRecordingSerializer(recordings, many=True)
         return Response(serializer.data)
 

@@ -128,7 +128,6 @@ export function PatientList({ patients, onSelectPatient, onAddPatient }: Patient
                         <span className="text-xs text-muted-foreground">ID: {patient.id}</span>
                       </div>
                     </div>
-                    <p className="text-sm text-muted-foreground">Last visit: {patient.lastVisit}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
