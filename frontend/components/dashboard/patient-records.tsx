@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { API_BASE_URL } from "@/lib/config"
+import { apiFetch } from "@/lib/api"
 import { buildMediaUrl } from "@/lib/media"
 import { Trash2, Upload } from "lucide-react"
 
@@ -42,16 +43,8 @@ export function PatientRecords({ patientId, patientName }: PatientRecordsProps) 
 
   const fetchRecords = async () => {
     try {
-      const token = localStorage.getItem('access_token')
-      const response = await fetch(`${API_BASE_URL}/doctor/patients/${patientId}/records/`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setRecords(data)
-      }
+      const data = await apiFetch<Record[]>(`/doctor/patients/${patientId}/records/`)
+      setRecords(data || [])
     } catch (error) {
       console.error('Error fetching records:', error)
     } finally {
@@ -64,25 +57,14 @@ export function PatientRecords({ patientId, patientName }: PatientRecordsProps) 
 
     setUploading(true)
     try {
-      const token = localStorage.getItem('access_token')
       const formData = new FormData()
       formData.append('type', newRecord.type)
       formData.append('title', newRecord.title)
-      if (newRecord.file) {
-        formData.append('file', newRecord.file)
-      }
+      if (newRecord.file) formData.append('file', newRecord.file)
 
-      const response = await fetch(`${API_BASE_URL}/doctor/patients/${patientId}/records/`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setRecords([...records, data])
+      const data = await apiFetch<Record>(`/doctor/patients/${patientId}/records/`, { method: 'POST', body: formData, asForm: true })
+      if (data) {
+        setRecords(prev => [...prev, data])
         setNewRecord({ type: "", title: "", file: null })
       }
     } catch (error) {
@@ -94,19 +76,8 @@ export function PatientRecords({ patientId, patientName }: PatientRecordsProps) 
 
   const handleDeleteRecord = async (id: number) => {
     try {
-      const token = localStorage.getItem('access_token')
-      const response = await fetch(`${API_BASE_URL}/doctor/patients/${patientId}/records/`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ record_id: id })
-      })
-
-      if (response.ok) {
-        setRecords(records.filter(r => r.id !== id))
-      }
+      await apiFetch(`/doctor/patients/${patientId}/records/`, { method: 'DELETE', body: JSON.stringify({ record_id: id }) })
+      setRecords(prev => prev.filter(r => r.id !== id))
     } catch (error) {
       console.error('Error deleting record:', error)
     }

@@ -1,7 +1,6 @@
 "use client";
-import React from "react";
-import { AppointmentReminders } from "@/components/dashboard/appointment-reminders";
-import { PatientDashboardLayout } from "@/components/dashboard/patient-dashboard-layout";
+import React from 'react'
+import { AppointmentReminders } from '@/components/dashboard/appointment-reminders'
 
 // still mock for now
 const appointments = [
@@ -10,9 +9,5 @@ const appointments = [
 ];
 
 export default function AppointmentsPage(){
-  return (
-    <PatientDashboardLayout>
-      <AppointmentReminders appointments={appointments} />
-    </PatientDashboardLayout>
-  )
+  return <AppointmentReminders appointments={appointments} />
 }

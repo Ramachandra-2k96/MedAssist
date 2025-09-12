@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { API_BASE_URL } from "@/lib/config"
+import { apiFetch } from "@/lib/api"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 interface Message {
@@ -33,16 +34,8 @@ export function PatientChat({ patientId, patientName }: PatientChatProps) {
 
   const fetchMessages = async () => {
     try {
-      const token = localStorage.getItem('access_token')
-      const response = await fetch(`${API_BASE_URL}/doctor/patients/${patientId}/chat/`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setMessages(data)
-      }
+      const data = await apiFetch<Message[]>(`/doctor/patients/${patientId}/chat/`)
+      setMessages(data || [])
     } catch (error) {
       console.error('Error fetching messages:', error)
     } finally {
@@ -55,19 +48,9 @@ export function PatientChat({ patientId, patientName }: PatientChatProps) {
 
     setSending(true)
     try {
-      const token = localStorage.getItem('access_token')
-      const response = await fetch(`${API_BASE_URL}/doctor/patients/${patientId}/chat/`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ text: newMessage })
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setMessages([...messages, data])
+      const data = await apiFetch<Message>(`/doctor/patients/${patientId}/chat/`, { method: 'POST', body: JSON.stringify({ text: newMessage }) })
+      if (data) {
+        setMessages(prev => [...prev, data])
         setNewMessage("")
       }
     } catch (error) {

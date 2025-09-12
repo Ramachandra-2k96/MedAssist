@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { API_BASE_URL } from '@/lib/config'
+import { apiFetch, buildQuery } from '@/lib/api'
 
 interface ChatMessage {
   id: number|string
@@ -26,12 +27,9 @@ export function PatientChatView({ doctorId }: { doctorId: number | null }) {
   const fetchMessages = async () => {
     if (!doctorId) return
     try {
-      const token = localStorage.getItem('access_token')
-      if (!token) return
-      const url = new URL(`${API_BASE_URL}/patient/chat/`)
-      url.searchParams.set('doctor_id', String(doctorId))
-      const resp = await fetch(url.toString(), { headers: { 'Authorization': `Bearer ${token}` } })
-      if (resp.ok) setMessages(await resp.json())
+      const qs = buildQuery({ doctor_id: doctorId })
+      const data = await apiFetch<ChatMessage[]>(`/patient/chat/${qs}`)
+      if (data) setMessages(data)
     } catch(e){ console.error(e) }
   }
 
@@ -41,8 +39,7 @@ export function PatientChatView({ doctorId }: { doctorId: number | null }) {
     setMessages(prev=> [...prev, local])
     const msg = input; setInput('')
     try {
-      const token = localStorage.getItem('access_token')
-      await fetch(`${API_BASE_URL}/patient/chat/`, { method:'POST', headers:{'Authorization':`Bearer ${token}`, 'Content-Type':'application/json'}, body: JSON.stringify({ text: msg, doctor: doctorId }) })
+      await apiFetch(`/patient/chat/`, { method:'POST', body: JSON.stringify({ text: msg, doctor: doctorId }) })
       fetchMessages()
     } catch(e){ console.error(e) }
   }

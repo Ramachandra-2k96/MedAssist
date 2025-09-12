@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Trash2, Play, Pause, FileAudio, Languages, Volume2, Mic, MicOff } from "lucide-react"
 import { API_BASE_URL } from "@/lib/config"
+import { apiFetch } from "@/lib/api"
 import { buildMediaUrl } from "@/lib/media"
 import SpeechRecognition, { useSpeechRecognition } from "react-speech-recognition"
 
@@ -71,16 +72,8 @@ export function PatientRecordings({ patientId, patientName }: PatientRecordingsP
 
   const fetchRecordings = async () => {
     try {
-      const token = localStorage.getItem('access_token')
-      const response = await fetch(`${API_BASE_URL}/doctor/patients/${patientId}/audio/`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setRecordings(data)
-      }
+      const data = await apiFetch<Recording[]>(`/doctor/patients/${patientId}/audio/`)
+      setRecordings(data || [])
     } catch (error) {
       console.error('Error fetching recordings:', error)
     } finally {
@@ -206,25 +199,14 @@ export function PatientRecordings({ patientId, patientName }: PatientRecordingsP
   const uploadRecording = async (blob: Blob, transcription: string, language: string, duration: number) => {
     setUploading(true)
     try {
-      const token = localStorage.getItem('access_token')
-      const formData = new FormData()
-      formData.append('title', `Recording ${new Date().toLocaleTimeString()}`)
-      formData.append('audio_file', blob, 'recording.webm')
-      formData.append('transcription', transcription)
-      formData.append('language', language)
+  const formData = new FormData()
+  formData.append('title', `Recording ${new Date().toLocaleTimeString()}`)
+  formData.append('audio_file', blob, 'recording.webm')
+  formData.append('transcription', transcription)
+  formData.append('language', language)
 
-      const response = await fetch(`${API_BASE_URL}/doctor/patients/${patientId}/audio/`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setRecordings(prev => [...prev, data])
-      }
+  const data = await apiFetch<Recording>(`/doctor/patients/${patientId}/audio/`, { method: 'POST', body: formData, asForm: true })
+  if (data) setRecordings(prev => [...prev, data])
     } catch (error) {
       console.error('Error uploading recording:', error)
     } finally {
@@ -286,27 +268,14 @@ export function PatientRecordings({ patientId, patientName }: PatientRecordingsP
 
   const handleDelete = async (id: number) => {
     try {
-      const token = localStorage.getItem('access_token')
-      const response = await fetch(`${API_BASE_URL}/doctor/patients/${patientId}/audio/`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ recording_id: id })
-      })
-
-      if (response.ok) {
-        const rec = recordings.find(r => r.id === id)
-        if (rec) {
-          if (audioRefs.current[id]) {
-            audioRefs.current[id]?.pause()
-            try { URL.revokeObjectURL(audioRefs.current[id]!.src) } catch {}
-            delete audioRefs.current[id]
-          }
-        }
-        setRecordings(prev => prev.filter(r => r.id !== id))
+      await apiFetch(`/doctor/patients/${patientId}/audio/`, { method: 'DELETE', body: JSON.stringify({ recording_id: id }) })
+      const rec = recordings.find(r => r.id === id)
+      if (rec && audioRefs.current[id]) {
+        audioRefs.current[id]?.pause()
+        try { URL.revokeObjectURL(audioRefs.current[id]!.src) } catch {}
+        delete audioRefs.current[id]
       }
+      setRecordings(prev => prev.filter(r => r.id !== id))
     } catch (error) {
       console.error('Error deleting recording:', error)
     }

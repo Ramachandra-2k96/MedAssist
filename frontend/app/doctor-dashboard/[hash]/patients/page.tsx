@@ -1,28 +1,14 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { Sidebar, SidebarBody, SidebarLink } from "@/components/ui/sidebar";
-import {
-  IconArrowLeft,
-  IconBrandTabler,
-  IconSettings,
-  IconUserBolt,
-  IconUsers,
-  IconMicrophone,
-  IconFileText,
-} from "@tabler/icons-react";
-import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { PatientList } from "@/components/dashboard/patient-list";
 import PatientView from "@/components/dashboard/patient-view";
 import { API_BASE_URL, MEDIA_BASE_URL } from "@/lib/config";
 import Protected from "@/components/auth/Protected";
-import { PrescriptionEditor } from "@/components/dashboard/prescription-editor";
 import { Stethoscope } from "lucide-react";
 
 import { getDoctorSidebarLinks, DoctorLogo, DoctorLogoIcon } from "@/components/dashboard/doctor-sidebar";
-import { ThemeSwitcher } from "@/components/theme-switcher";
-import Link from "next/link";
 import { useParams } from "next/navigation";
 
 interface Patient {
