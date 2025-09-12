@@ -118,6 +118,9 @@ class PatientRecordsView(APIView):
             patient = User.objects.get(id=patient_id, groups__name='Patient')
             DoctorPatient.objects.get(doctor=request.user, patient=patient)
             record = Record.objects.get(id=record_id, doctor=request.user, patient=patient)
+            # Only allow delete if this record was uploaded by doctor
+            if record.uploaded_by != 'doctor':
+                return Response({'error': 'Only the uploader can delete this record'}, status=status.HTTP_403_FORBIDDEN)
             
             # Delete the file if it exists
             if record.file:
@@ -174,6 +177,9 @@ class PatientAudioRecordingsView(APIView):
             patient = User.objects.get(id=patient_id, groups__name='Patient')
             DoctorPatient.objects.get(doctor=request.user, patient=patient)
             recording = AudioRecording.objects.get(id=recording_id, doctor=request.user, patient=patient)
+            # Only allow delete if this recording was uploaded by doctor
+            if recording.uploaded_by != 'doctor':
+                return Response({'error': 'Only the uploader can delete this recording'}, status=status.HTTP_403_FORBIDDEN)
             
             # Delete the audio file if it exists
             if recording.audio_file:

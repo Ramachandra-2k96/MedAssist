@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { API_BASE_URL } from '@/lib/config'
 import { buildMediaUrl } from '@/lib/media'
 import { Trash2, Upload } from 'lucide-react'
+import { useToast } from '@/components/ui/use-toast'
 
 interface PRecord { id:number; type:string; title:string; file?:string; uploaded_at:string; uploaded_by:string; doctor_name?:string }
 
@@ -16,6 +17,7 @@ export function PatientSelfRecords({ doctorId }: { doctorId: number | null }) {
   const [loading, setLoading] = useState(true)
   const [adding, setAdding] = useState(false)
   const [form, setForm] = useState({ type:'', title:'', file: null as File | null })
+  const { toast } = useToast()
 
   useEffect(()=> { fetchRecords() }, [doctorId])
 
@@ -28,11 +30,14 @@ export function PatientSelfRecords({ doctorId }: { doctorId: number | null }) {
       if (doctorId) url.searchParams.set('doctor_id', String(doctorId))
       const resp = await fetch(url.toString(), { headers:{ 'Authorization':`Bearer ${token}` } })
       if (resp.ok) setRecords(await resp.json())
-    } catch(e){ console.error(e)} finally { setLoading(false) }
+      else { const detail = await resp.json().catch(()=>null); toast({ title:'Failed to load records', description: detail? JSON.stringify(detail):'Unexpected error', variant:'destructive' as any }) }
+    } catch(e){ console.error(e); toast({ title:'Failed to load records', description: String(e), variant:'destructive' as any }) } finally { setLoading(false) }
   }
 
   const addRecord = async () => {
-    if (!doctorId || !form.type || !form.title) return
+    if (!doctorId) { toast({ title:'Select a doctor', description:'Please choose a doctor first.', variant:'destructive' as any }); return }
+    if (!form.type || !form.title) { toast({ title:'Missing fields', description:'Type and title are required.', variant:'destructive' as any }); return }
+    if (!form.file) { toast({ title:'File required', description:'Please attach a document before submitting.', variant:'destructive' as any }); return }
     setAdding(true)
     try {
       const token = localStorage.getItem('access_token')
@@ -42,8 +47,9 @@ export function PatientSelfRecords({ doctorId }: { doctorId: number | null }) {
       fd.append('title', form.title)
       if (form.file) fd.append('file', form.file)
       const resp = await fetch(`${API_BASE_URL}/patient/records/`, { method:'POST', headers:{ 'Authorization':`Bearer ${token}` }, body: fd })
-      if (resp.ok) { await fetchRecords(); setForm({ type:'', title:'', file:null }) }
-    } catch(e){ console.error(e)} finally { setAdding(false) }
+      if (resp.ok) { await fetchRecords(); setForm({ type:'', title:'', file:null }); toast({ title:'Record uploaded' }) }
+      else { const detail = await resp.json().catch(()=>null); toast({ title:'Upload failed', description: detail? JSON.stringify(detail):'Unexpected error', variant:'destructive' as any }) }
+    } catch(e){ console.error(e); toast({ title:'Upload failed', description:String(e), variant:'destructive' as any }) } finally { setAdding(false) }
   }
 
   const delRecord = async (id:number, uploaded_by:string) => {
@@ -51,8 +57,9 @@ export function PatientSelfRecords({ doctorId }: { doctorId: number | null }) {
     try {
       const token = localStorage.getItem('access_token')
       const resp = await fetch(`${API_BASE_URL}/patient/records/`, { method:'DELETE', headers:{ 'Authorization':`Bearer ${token}`, 'Content-Type':'application/json' }, body: JSON.stringify({ record_id: id }) })
-      if (resp.status === 204) setRecords(prev=> prev.filter(r=> r.id!==id))
-    } catch(e){ console.error(e)}
+      if (resp.status === 204) { setRecords(prev=> prev.filter(r=> r.id!==id)); toast({ title:'Record deleted' }) }
+      else { const detail = await resp.json().catch(()=>null); toast({ title:'Delete failed', description: detail? JSON.stringify(detail):'Unexpected error', variant:'destructive' as any }) }
+    } catch(e){ console.error(e); toast({ title:'Delete failed', description:String(e), variant:'destructive' as any }) }
   }
 
   return (
@@ -74,10 +81,10 @@ export function PatientSelfRecords({ doctorId }: { doctorId: number | null }) {
             </div>
           </div>
           <div>
-            <Label className="text-xs">File (optional)</Label>
-            <Input type="file" accept=".pdf,.jpg,.png,.doc,.docx" onChange={e=> setForm(f=> ({...f, file: e.target.files?.[0]||null}))} />
+            <Label className="text-xs">File (required)</Label>
+            <Input type="file" required accept=".pdf,.jpg,.png,.doc,.docx" onChange={e=> setForm(f=> ({...f, file: e.target.files?.[0]||null}))} />
           </div>
-          <Button disabled={!doctorId || adding} onClick={addRecord} className="w-full">
+          <Button disabled={!doctorId || adding || !form.file} onClick={addRecord} className="w-full">
             <Upload className="w-4 h-4 mr-2" /> {adding? 'Saving...':'Save Record'}
           </Button>
         </div>

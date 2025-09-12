@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { apiFetch, buildQuery } from '@/lib/api'
+import { useToast } from '@/components/ui/use-toast'
 
 interface ChatMessage { id: number|string; text: string; sender: string; timestamp: string; doctor_name?: string }
 
@@ -19,6 +20,7 @@ export function ChatCenter({ mode, patientId, doctorId }: ChatCenterProps) {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const bottomRef = useRef<HTMLDivElement|null>(null)
+  const { toast } = useToast()
 
   useEffect(()=> { bottomRef.current?.scrollIntoView({behavior:'smooth'}) }, [messages])
   useEffect(()=> { if (mode !== 'bot') fetchMessages() }, [patientId, doctorId, mode])
@@ -35,11 +37,12 @@ export function ChatCenter({ mode, patientId, doctorId }: ChatCenterProps) {
         const data = await apiFetch<ChatMessage[]>(`/patient/chat/${qs}`)
         setMessages(data||[])
       }
-    } catch(e){ console.error(e) } finally { setLoading(false) }
+    } catch(e:any){ console.error(e); toast({ title:'Failed to load chat', description: e?.detail ? JSON.stringify(e.detail): String(e), variant:'destructive' as any }) } finally { setLoading(false) }
   }
 
   const sendMessage = async () => {
-    if (!input.trim()) return
+  if (!input.trim()) return
+  if (mode==='patient' && !doctorId) { toast({ title:'Select a doctor', description:'Choose a doctor to send a message.', variant:'destructive' as any }); return }
     const local = { id: Date.now(), text: input, sender: mode==='doctor'? 'doctor':'patient', timestamp: new Date().toISOString() }
     setMessages(prev=> [...prev, local])
     const msg = input; setInput('')
@@ -55,7 +58,7 @@ export function ChatCenter({ mode, patientId, doctorId }: ChatCenterProps) {
         await apiFetch(`/patient/chat/`, { method:'POST', body: JSON.stringify({ text: msg, doctor: doctorId }) })
       }
       fetchMessages()
-    } catch(e){ console.error(e) }
+    } catch(e:any){ console.error(e); toast({ title:'Send failed', description: e?.detail ? JSON.stringify(e.detail): String(e), variant:'destructive' as any }) }
   }
 
   return (

@@ -63,6 +63,17 @@ class RecordSerializer(serializers.ModelSerializer):
         except Exception:
             return None
 
+    def validate(self, attrs):
+        # Require a file to be uploaded when creating a new Record
+        # Allow existing instances to remain even if file is missing
+        if self.instance is None:
+            # When using multipart form, DRF places files in initial_data as well
+            incoming = getattr(self, 'initial_data', {}) or {}
+            has_file = bool(incoming.get('file') or attrs.get('file'))
+            if not has_file:
+                raise serializers.ValidationError({'file': 'This field is required.'})
+        return super().validate(attrs)
+
 class AudioRecordingSerializer(serializers.ModelSerializer):
     duration = serializers.SerializerMethodField()
     doctor_name = serializers.SerializerMethodField()

@@ -8,6 +8,7 @@ import { Languages, Mic, MicOff, Play, Pause, Trash2, FileAudio, Volume2 } from 
 import { apiFetch } from '@/lib/api'
 import { buildMediaUrl } from '@/lib/media'
 import { useAudioRecorder } from '@/hooks/use-audio-recorder'
+import { useToast } from '@/components/ui/use-toast'
 
 interface BaseRecording { id: number; title: string; audio_file: string; transcription: string; language: string; recorded_at: string; uploaded_by: string; doctor_name?: string }
 
@@ -28,6 +29,9 @@ export function AudioCenter({ mode, patientId, doctorId, patientName }: AudioCen
   const [playingId, setPlayingId] = useState<number | null>(null)
   const [playProgress, setPlayProgress] = useState<Record<number, number>>({})
   const [showTx, setShowTx] = useState<Record<number, boolean>>({})
+  const { toast } = useToast()
+  const [doctors, setDoctors] = useState<Array<{id:number; name:string; email:string; photo_url?:string}>>([])
+  const [selectedDoctorId, setSelectedDoctorId] = useState<number | null>(doctorId ?? null)
 
   const audioRefs = useRef<Record<number, HTMLAudioElement | null>>({})
 
@@ -39,19 +43,37 @@ export function AudioCenter({ mode, patientId, doctorId, patientName }: AudioCen
     fd.append('audio_file', blob, 'recording.webm')
     fd.append('transcription', tx || 'No speech detected.')
     fd.append('language', selectedLanguage)
-    if (mode === 'patient' && doctorId) fd.append('doctor', String(doctorId))
-    try { const rec = await apiFetch<BaseRecording>(basePath, { method:'POST', body: fd, asForm:true }); if (rec) setRecordings(prev=>[...prev, rec]) } catch(e){ console.error(e) }
+    if (mode === 'patient') {
+      const eff = selectedDoctorId || doctorId
+      if (!eff) { toast({ title:'Select a doctor', description:'Please choose a doctor first.', variant:'destructive' as any }); return }
+      fd.append('doctor', String(eff))
+    }
+    try { const rec = await apiFetch<BaseRecording>(basePath, { method:'POST', body: fd, asForm:true }); if (rec) { setRecordings(prev=>[...prev, rec]); toast({ title:'Recording uploaded' }) } }
+    catch(e:any){ console.error(e); toast({ title:'Upload failed', description: e?.detail ? JSON.stringify(e.detail) : String(e), variant: 'destructive' as any }) }
   }})
 
   const fetchRecordings = async () => {
     try {
       let path = basePath
-      if (mode==='patient' && doctorId) path += `?doctor_id=${doctorId}`
+      const eff = selectedDoctorId || doctorId
+      if (mode==='patient' && eff) path += `?doctor_id=${eff}`
       const data = await apiFetch<BaseRecording[]>(path)
       setRecordings(data || [])
-    } catch(e){ console.error(e) } finally { setLoading(false) }
+    } catch(e:any){ console.error(e); toast({ title:'Failed to load recordings', description: e?.detail ? JSON.stringify(e.detail) : String(e), variant: 'destructive' as any }) } finally { setLoading(false) }
   }
-  useEffect(()=> { fetchRecordings() }, [patientId, doctorId])
+  useEffect(()=> { fetchRecordings() }, [patientId, doctorId, selectedDoctorId])
+
+  useEffect(()=> {
+    if (mode==='patient') {
+      (async()=>{
+        try {
+          const docs = await apiFetch<Array<{id:number; name:string; email:string; photo_url?:string}>>('/patient/doctors/')
+          setDoctors(docs||[])
+          if ((docs||[]).length && !selectedDoctorId) setSelectedDoctorId(docs[0].id)
+        } catch(e:any){ console.error(e); toast({ title:'Failed to load doctors', description: e?.detail ? JSON.stringify(e.detail) : String(e), variant:'destructive' as any }) }
+      })()
+    }
+  }, [mode])
 
   const togglePlay = (id:number) => {
     const rec = recordings.find(r=> r.id===id); if(!rec) return
@@ -67,7 +89,8 @@ export function AudioCenter({ mode, patientId, doctorId, patientName }: AudioCen
   }
 
   const deleteRecording = async (id:number) => {
-    try { await apiFetch(basePath, { method:'DELETE', body: JSON.stringify({ recording_id: id }) }); setRecordings(prev=> prev.filter(r=> r.id!==id)) } catch(e){ console.error(e) }
+    try { await apiFetch(basePath, { method:'DELETE', body: JSON.stringify({ recording_id: id }) }); setRecordings(prev=> prev.filter(r=> r.id!==id)); toast({ title:'Recording deleted' }) }
+    catch(e:any){ console.error(e); toast({ title:'Delete failed', description: e?.detail ? JSON.stringify(e.detail) : String(e), variant: 'destructive' as any }) }
   }
 
   return (
@@ -76,6 +99,19 @@ export function AudioCenter({ mode, patientId, doctorId, patientName }: AudioCen
         <CardTitle>{mode==='doctor'? `Recordings for ${patientName||'Patient'}` : 'Your Audio Recordings'}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
+        {mode==='patient' && (
+          <div>
+            <label className="text-sm font-medium mb-1 block">Select Doctor</label>
+            <Select value={selectedDoctorId? String(selectedDoctorId): undefined} onValueChange={(v)=> setSelectedDoctorId(Number(v))}>
+              <SelectTrigger>
+                <SelectValue placeholder={doctors.length? 'Choose doctor':'No doctors linked'} />
+              </SelectTrigger>
+              <SelectContent>
+                {doctors.map(d=> (<SelectItem key={d.id} value={String(d.id)}>{d.name || d.email}</SelectItem>))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         <div className="space-y-4">
           <h3 className="font-semibold">Record New Audio</h3>
           {!isRecording && (

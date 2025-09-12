@@ -9,6 +9,7 @@ import { API_BASE_URL } from '@/lib/config'
 import { buildMediaUrl } from '@/lib/media'
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition'
 import { Mic, MicOff, FileAudio, Play, Pause, Languages, Trash2, Upload } from 'lucide-react'
+import { useToast } from '@/components/ui/use-toast'
 
 interface Recording {
   id: number
@@ -39,6 +40,7 @@ export function PatientAudioSection({ doctorId }: { doctorId: number | null }) {
   const recordedChunksRef = useRef<Blob[]>([])
   const timerRef = useRef<number | null>(null)
   const finalTranscriptRef = useRef<string | null>(null)
+  const { toast } = useToast()
 
   const { transcript, listening, resetTranscript, browserSupportsSpeechRecognition } = useSpeechRecognition()
 
@@ -57,14 +59,15 @@ export function PatientAudioSection({ doctorId }: { doctorId: number | null }) {
   if (effectiveDoctorId) url.searchParams.set('doctor_id', String(effectiveDoctorId))
       const resp = await fetch(url.toString(), { headers:{ 'Authorization': `Bearer ${token}` } })
       if (resp.ok) setRecordings(await resp.json())
-    } catch(e){ console.error(e)} finally { setLoading(false) }
+      else { const detail = await resp.json().catch(()=>null); toast({ title:'Failed to load recordings', description: detail? JSON.stringify(detail):'Unexpected error', variant:'destructive' as any }) }
+    } catch(e){ console.error(e); toast({ title:'Failed to load recordings', description:String(e), variant:'destructive' as any }) } finally { setLoading(false) }
   }
 
   const langCode = (l:string) => ({ en:'en-US', kn:'kn-IN', es:'es-ES', fr:'fr-FR', de:'de-DE', hi:'hi-IN', zh:'zh-CN', ja:'ja-JP' }[l]||'en-US')
   const fmt = (s:number)=>{ if(!s||!isFinite(s)) return '0:00'; const m=Math.floor(s/60); const sec=Math.floor(s%60); return `${m}:${sec.toString().padStart(2,'0')}` }
 
   const startRecording = async () => {
-  if (!effectiveDoctorId) return alert('Select a doctor first')
+  if (!effectiveDoctorId) return toast({ title:'Select a doctor', description:'Please choose a doctor first.', variant:'destructive' as any })
     if (!showLanguageSelect) return setShowLanguageSelect(true)
     if (!browserSupportsSpeechRecognition) return alert('Speech recognition not supported in this browser')
     try {
@@ -82,7 +85,7 @@ export function PatientAudioSection({ doctorId }: { doctorId: number | null }) {
       mr.start(); setIsRecording(true); setShowLanguageSelect(false)
       SpeechRecognition.startListening({ continuous:true, language: langCode(selectedLanguage) })
       timerRef.current = window.setInterval(()=> setRecordingSeconds(s=>s+1), 1000)
-    } catch(err){ console.error(err); alert('Mic permission denied') }
+  } catch(err){ console.error(err); toast({ title:'Could not start recording', description:'Check microphone permissions.', variant:'destructive' as any }) }
   }
 
   const stopRecording = () => {
@@ -106,8 +109,9 @@ export function PatientAudioSection({ doctorId }: { doctorId: number | null }) {
       fd.append('transcription', transcription)
       fd.append('language', selectedLanguage)
       const resp = await fetch(`${API_BASE_URL}/patient/audio/`, { method:'POST', headers:{ 'Authorization': `Bearer ${token}` }, body: fd })
-      if (resp.ok) { await fetchRecordings() }
-    } catch(e){ console.error(e)} finally { setUploading(false) }
+      if (resp.ok) { await fetchRecordings(); toast({ title:'Recording uploaded' }) }
+      else { const detail = await resp.json().catch(()=>null); toast({ title:'Upload failed', description: detail? JSON.stringify(detail):'Unexpected error', variant:'destructive' as any }) }
+    } catch(e){ console.error(e); toast({ title:'Upload failed', description:String(e), variant:'destructive' as any }) } finally { setUploading(false) }
   }
 
   // Removed manual file upload per requirement
@@ -131,8 +135,8 @@ export function PatientAudioSection({ doctorId }: { doctorId: number | null }) {
     try {
       const token = localStorage.getItem('access_token')
       const resp = await fetch(`${API_BASE_URL}/patient/audio/`, { method:'DELETE', headers:{ 'Authorization':`Bearer ${token}`, 'Content-Type':'application/json' }, body: JSON.stringify({ recording_id: id }) })
-      if (resp.status === 204) setRecordings(prev=> prev.filter(r=> r.id!==id))
-    } catch(e){ console.error(e)}
+      if (resp.status === 204) { setRecordings(prev=> prev.filter(r=> r.id!==id)); toast({ title:'Recording deleted' }) }
+    } catch(e){ console.error(e); toast({ title:'Delete failed', description:String(e), variant:'destructive' as any }) }
   }
 
   return (
