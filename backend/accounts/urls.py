@@ -15,7 +15,7 @@ from .views import (
     PatientPrescriptionsViewPublic,
     PatientDoctorsView,
 )
-from .views import LogoutView
+from .views import LogoutView, test_sms
 
 urlpatterns = [
     path('signup/', SignupView.as_view(), name='signup'),
@@ -34,4 +34,5 @@ urlpatterns = [
     path('patient/prescriptions/', PatientPrescriptionsViewPublic.as_view(), name='patient_prescriptions_public'),
     path('patient/doctors/', PatientDoctorsView.as_view(), name='patient_doctors'),
     path('logout/', LogoutView.as_view(), name='logout'),
+    path('test-sms/', test_sms, name='test_sms'),  # New endpoint for testing SMS
 ]

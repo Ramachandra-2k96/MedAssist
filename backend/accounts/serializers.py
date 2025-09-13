@@ -1,18 +1,12 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User, Group
 from django.contrib.auth import authenticate
-from .models import Profile
+from .models import Profile, DoctorPatient, Record, AudioRecording, ChatMessage, Prescription
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ('id', 'username', 'email', 'first_name', 'last_name')
-
-from rest_framework import serializers
-from django.contrib.auth.models import User, Group
-from django.contrib.auth import authenticate
-from .models import Profile, DoctorPatient, Record, AudioRecording, ChatMessage, Prescription
-
 class ProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer()
     role = serializers.SerializerMethodField()
@@ -20,7 +14,7 @@ class ProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Profile
-        fields = ('user', 'name', 'role', 'photo_url')
+        fields = ('user', 'name', 'role', 'photo_url', 'phone_number')
 
     def get_role(self, obj):
         groups = obj.user.groups.all()
@@ -40,16 +34,20 @@ class DoctorPatientSerializer(serializers.ModelSerializer):
     doctor = serializers.StringRelatedField()
     patient = UserSerializer()
     patient_name = serializers.SerializerMethodField()
+    phone = serializers.SerializerMethodField()
 
     class Meta:
         model = DoctorPatient
-        fields = ('id', 'doctor', 'patient', 'patient_name', 'added_at')
+        fields = ('id', 'doctor', 'patient', 'patient_name', 'phone', 'added_at')
 
     def get_patient_name(self, obj):
         try:
             return obj.patient.profile.name or obj.patient.username
         except Exception:
-            return getattr(obj.patient, 'username', None)
+            return obj.patient.username
+
+    def get_phone(self, obj):
+        return obj.patient.profile.phone_number
 
 class RecordSerializer(serializers.ModelSerializer):
     doctor_name = serializers.SerializerMethodField()
@@ -139,17 +137,20 @@ class DoctorBasicSerializer(serializers.ModelSerializer):
 class SignupSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
     name = serializers.CharField(write_only=True)
+    phone_number = serializers.CharField(write_only=True, required=False)
 
     class Meta:
         model = User
-        fields = ('email', 'password', 'name')
+        fields = ('email', 'password', 'name', 'phone_number')
 
     def create(self, validated_data):
         name = validated_data.pop('name')
+        phone_number = validated_data.pop('phone_number', '')
         email = validated_data['email']
         validated_data['username'] = email  # set username to email
         user = User.objects.create_user(**validated_data)
         user.profile.name = name
+        user.profile.phone_number = phone_number
         user.profile.save()
         patient_group, created = Group.objects.get_or_create(name='Patient')
         user.groups.add(patient_group)

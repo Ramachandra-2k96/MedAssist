@@ -27,6 +27,7 @@ class Command(BaseCommand):
             user.groups.add(doctor_group)
             # name on profile
             user.profile.name = f"Doctor {i}"
+            user.profile.phone_number = f"+91935386742{i}"
             user.profile.save()
             doctors.append(user)
 
@@ -44,6 +45,7 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.SUCCESS(f"Created patient: {email}"))
             user.groups.add(patient_group)
             user.profile.name = f"Patient {i}"
+            user.profile.phone_number = f"+91935386743{i}"
             user.profile.save()
             patients.append(user)
 

@@ -518,3 +518,10 @@ class LogoutView(APIView):
             return Response({'message': 'Logged out'}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'error': f'Invalid token: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+
+from django.http import JsonResponse
+from .utils import send_sms  # assuming you saved the function in utils.py
+
+def test_sms(request):
+    sid = send_sms("Hello from Django!", "9362993823") 
+    return JsonResponse({"status": "sent", "sid": sid})

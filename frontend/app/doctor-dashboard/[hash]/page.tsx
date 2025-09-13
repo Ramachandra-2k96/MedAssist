@@ -78,8 +78,8 @@ export default function DoctorDashboard() {
           .map((dp: any) => ({
             id: dp.patient.id?.toString() || '',
             name: dp.patient_name || dp.patient.profile?.name || dp.patient.username || 'Unknown',
-            phone: dp.patient.id?.toString() || '',
-            email: '',
+            phone: dp.phone || '',
+            email: dp.patient.email || '',
             lastVisit: dp.added_at?.split('T')[0] || '',
             status: 'active' as const,
             adherence: 85, // Mock

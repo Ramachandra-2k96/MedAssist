@@ -7,6 +7,7 @@ class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     name = models.CharField(max_length=100, blank=True)
     photo = models.ImageField(upload_to='profiles/', blank=True, null=True)
+    phone_number = models.CharField(max_length=15, blank=True)
 
     def __str__(self):
         return f"{self.user.username} - {self.user.groups.first().name if self.user.groups.exists() else 'No Group'}"

@@ -126,6 +126,7 @@ export function PatientList({ patients, onSelectPatient, onAddPatient }: Patient
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <span className="text-xs text-muted-foreground">ID: {patient.id}</span>
+                        <span className="text-xs text-muted-foreground">Phone: {patient.phone}</span>
                       </div>
                     </div>
                   </div>

@@ -21,6 +21,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ mode, onSuccess }) => {
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [name, setName] = useState("")
+  const [phoneNumber, setPhoneNumber] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -34,7 +35,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ mode, onSuccess }) => {
     setIsLoading(true)
     try {
       const endpoint = isSignup ? "signup" : "login"
-      const body: any = isSignup ? { name, email, password } : { email, password }
+      const body: any = isSignup ? { name, email, password, phone_number: phoneNumber } : { email, password }
       const response = await fetch(`${API_BASE_URL}/${endpoint}/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -82,6 +83,20 @@ export const AuthForm: React.FC<AuthFormProps> = ({ mode, onSuccess }) => {
               placeholder="Enter your full name"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              className="bg-background/50 border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-primary/20"
+              required
+            />
+          </div>
+        )}
+        {isSignup && (
+          <div className="space-y-2">
+            <Label htmlFor="phoneNumber" className="text-foreground">Phone Number</Label>
+            <Input
+              id="phoneNumber"
+              type="tel"
+              placeholder="Enter your phone number"
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
               className="bg-background/50 border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-primary/20"
               required
             />
