@@ -34,10 +34,14 @@
 import re
 import boto3
 from django.conf import settings
+import logging
 
-def send_sms(message_text: str, recipient: str) -> dict:
+logger = logging.getLogger('accounts.cron')
+
+def send_sms(message_text: str, recipient: str) -> str:
     """
     Sends SMS via AWS SNS directly to a phone number.
+    For now, this is a mock implementation that logs the SMS instead of sending it.
     """
     # Normalize phone number
     recipient = re.sub(r'\D', '', recipient)
@@ -45,24 +49,29 @@ def send_sms(message_text: str, recipient: str) -> dict:
         recipient = "91" + recipient
     recipient = "+" + recipient
 
-    # Create SNS client
-    sns_client = boto3.client(
-        "sns",
-        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-        region_name=settings.AWS_REGION
-    )
+    # Mock implementation - just return a fake SID
+    logger.info(f"MOCK SMS: To {recipient} - {message_text}")
+    return "mock_sid_" + str(hash(message_text + recipient))[:8]
 
-    # Publish SMS
-    response = sns_client.publish(
-        PhoneNumber=recipient,
-        Message=message_text,
-        MessageAttributes={
-            'AWS.SNS.SMS.SMSType': {
-                'DataType': 'String',
-                'StringValue': 'Transactional'  # Required for India
-            }
-        }
-    )
-    return response
+    # Uncomment below for actual AWS SNS sending
+    # # Create SNS client
+    # sns_client = boto3.client(
+    #     "sns",
+    #     aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+    #     aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+    #     region_name=settings.AWS_REGION
+    # )
+
+    # # Publish SMS
+    # response = sns_client.publish(
+    #     PhoneNumber=recipient,
+    #     Message=message_text,
+    #     MessageAttributes={
+    #         'AWS.SNS.SMS.SMSType': {
+    #             'DataType': 'String',
+    #             'StringValue': 'Transactional'  # Required for India
+    #         }
+    #     }
+    # )
+    # return response.get('MessageId', 'unknown')
 

@@ -1,13 +1,11 @@
 "use client";
 import React from 'react'
-import { AppointmentReminders } from '@/components/dashboard/appointment-reminders'
-
-// still mock for now
-const appointments = [
-  { id:"1", doctor:"Dr. Smith", date:"2025-09-05", time:"10:00 AM", type:"General Checkup", location:"City Hospital", status:"upcoming" as const },
-  { id:"2", doctor:"Dr. Johnson", date:"2025-09-10", time:"2:00 PM", type:"Follow-up", status:"upcoming" as const }
-];
+import { PatientAppointmentHistory } from '@/components/dashboard/patient-appointment-history'
 
 export default function AppointmentsPage(){
-  return <AppointmentReminders appointments={appointments} />
+  return (
+    <div className="space-y-6">
+      <PatientAppointmentHistory />
+    </div>
+  )
 }

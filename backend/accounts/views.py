@@ -14,11 +14,15 @@ from .serializers import (
     AudioRecordingSerializer,
     ChatMessageSerializer,
     PrescriptionSerializer,
+    TakenDoseSerializer,
     DoctorBasicSerializer,
+    AppointmentSerializer,
 )
-from .models import DoctorPatient, Record, AudioRecording, ChatMessage, Prescription, Profile
+from .models import DoctorPatient, Record, AudioRecording, ChatMessage, Prescription, Profile, Appointment, TakenDose
 from django.db.models import Q
 import os
+from datetime import datetime
+from django.utils import timezone
 
 class SignupView(APIView):
     permission_classes = [AllowAny]
@@ -165,7 +169,18 @@ class PatientAudioRecordingsView(APIView):
         data['patient'] = patient.id
         serializer = AudioRecordingSerializer(data=data)
         if serializer.is_valid():
-            serializer.save()
+            recording = serializer.save()
+            # Send SMS with transcription to patient
+            try:
+                from .utils import send_sms
+                patient_phone = patient.profile.phone_number
+                if patient_phone and recording.transcription:
+                    doctor_name = request.user.profile.name or request.user.username
+                    message = f"Dr. {doctor_name}: {recording.transcription}"
+                    send_sms(message, patient_phone)
+            except Exception as e:
+                # Log error but don't fail the request
+                print(f"SMS failed: {e}")
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -504,6 +519,85 @@ class PatientDoctorsView(APIView):
         return Response(data)
 
 
+class PatientAppointmentsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not request.user.groups.filter(name='Patient').exists():
+            return Response({'error': 'Only patients can access this'}, status=status.HTTP_403_FORBIDDEN)
+        appointments = Appointment.objects.filter(patient=request.user).order_by('-created_at')
+        serializer = AppointmentSerializer(appointments, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        if not request.user.groups.filter(name='Patient').exists():
+            return Response({'error': 'Only patients can access this'}, status=status.HTTP_403_FORBIDDEN)
+        doctor_id = request.data.get('doctor')
+        if not doctor_id:
+            return Response({'error': 'Doctor ID required'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            doctor = User.objects.get(id=doctor_id, groups__name='Doctor')
+            DoctorPatient.objects.get(doctor=doctor, patient=request.user)
+        except (User.DoesNotExist, DoctorPatient.DoesNotExist):
+            return Response({'error': 'Doctor not found or not associated'}, status=status.HTTP_404_NOT_FOUND)
+        
+        data = request.data.copy()
+        data['patient'] = request.user.id
+        serializer = AppointmentSerializer(data=data)
+        if serializer.is_valid():
+            appointment = serializer.save()
+            # Send SMS notification to doctor
+            try:
+                from .utils import send_sms
+                doctor_phone = doctor.profile.phone_number
+                if doctor_phone:
+                    message = f"New appointment request from {request.user.profile.name or request.user.username}"
+                    send_sms(message, doctor_phone)
+            except Exception as e:
+                # Log error but don't fail the request
+                print(f"SMS failed: {e}")
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class DoctorAppointmentsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not request.user.groups.filter(name='Doctor').exists():
+            return Response({'error': 'Only doctors can access this'}, status=status.HTTP_403_FORBIDDEN)
+        appointments = Appointment.objects.filter(doctor=request.user).order_by('-created_at')
+        serializer = AppointmentSerializer(appointments, many=True)
+        return Response(serializer.data)
+
+    def patch(self, request, appointment_id):
+        if not request.user.groups.filter(name='Doctor').exists():
+            return Response({'error': 'Only doctors can access this'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            appointment = Appointment.objects.get(id=appointment_id, doctor=request.user)
+        except Appointment.DoesNotExist:
+            return Response({'error': 'Appointment not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        serializer = AppointmentSerializer(appointment, data=request.data, partial=True)
+        if serializer.is_valid():
+            updated_appointment = serializer.save()
+            # Send SMS notification to patient if status changed to accepted or booked
+            if 'status' in request.data and request.data['status'] in ['accepted', 'booked']:
+                try:
+                    from .utils import send_sms
+                    patient_phone = appointment.patient.profile.phone_number
+                    if patient_phone:
+                        if request.data['status'] == 'accepted':
+                            message = f"Your appointment request with Dr. {request.user.profile.name or request.user.username} has been accepted."
+                        else:
+                            message = f"Your appointment with Dr. {request.user.profile.name or request.user.username} has been booked for {appointment.booked_date} at {appointment.booked_time}."
+                        send_sms(message, patient_phone)
+                except Exception as e:
+                    print(f"SMS failed: {e}")
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -518,6 +612,123 @@ class LogoutView(APIView):
             return Response({'message': 'Logged out'}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'error': f'Invalid token: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+
+class PatientMedicationLogsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not request.user.groups.filter(name='Patient').exists():
+            return Response({'error': 'Only patients can access this'}, status=status.HTTP_403_FORBIDDEN)
+        from datetime import datetime, timedelta
+        now = timezone.now()
+        next_hour = now + timedelta(hours=1)
+        
+        pending_doses = []
+        prescriptions = Prescription.objects.filter(patient=request.user)
+        for prescription in prescriptions:
+            if prescription.duration_days and (prescription.created_at + timedelta(days=prescription.duration_days)) < now:
+                continue  # Expired
+            medicines = prescription.medicines
+            for medicine in medicines:
+                name = medicine.get('name')
+                frequency = medicine.get('frequency')
+                duration_str = medicine.get('duration', '7-days')
+                
+                if duration_str == 'ongoing':
+                    duration_days = 365
+                elif duration_str == 'as-needed':
+                    continue
+                else:
+                    duration_days = int(duration_str.split('-')[0]) if '-' in duration_str else 7
+                
+                if frequency == 'once-daily':
+                    interval_hours = 24
+                elif frequency == 'twice-daily':
+                    interval_hours = 12
+                elif frequency == 'three-times-daily':
+                    interval_hours = 8
+                elif frequency == 'four-times-daily':
+                    interval_hours = 6
+                elif frequency == 'every-4-hours':
+                    interval_hours = 4
+                elif frequency == 'every-6-hours':
+                    interval_hours = 6
+                elif frequency == 'every-8-hours':
+                    interval_hours = 8
+                elif frequency == 'every-12-hours':
+                    interval_hours = 12
+                elif frequency == 'weekly':
+                    interval_hours = 24 * 7
+                elif frequency == 'monthly':
+                    interval_hours = 24 * 30
+                elif frequency == 'every-30-minutes':
+                    interval_hours = 0.5
+                elif frequency == 'as-needed':
+                    continue
+                else:
+                    interval_hours = 24
+                
+                start_time = prescription.created_at
+                current_time = start_time
+                end_time = start_time + timedelta(days=duration_days)
+                while current_time < end_time and current_time <= next_hour:
+                    if current_time >= now and current_time <= next_hour:
+                        # Check if already taken
+                        taken = TakenDose.objects.filter(
+                            prescription=prescription,
+                            medicine_name=name,
+                            taken_at__date=current_time.date(),
+                            taken_at__hour=current_time.hour
+                        ).exists()
+                        if not taken:
+                            pending_doses.append({
+                                'id': f"{prescription.id}-{name}-{int(current_time.timestamp())}",
+                                'prescription': prescription.id,
+                                'prescription_title': f"Prescription by {prescription.doctor.profile.name or prescription.doctor.username}",
+                                'medicine_name': name,
+                                'scheduled_time': current_time,
+                                'taken_at': None,
+                                'status': 'pending'
+                            })
+                    current_time += timedelta(hours=interval_hours)
+        
+        # Sort by scheduled_time
+        pending_doses.sort(key=lambda x: x['scheduled_time'])
+        return Response(pending_doses)
+
+    def post(self, request):
+        if not request.user.groups.filter(name='Patient').exists():
+            return Response({'error': 'Only patients can access this'}, status=status.HTTP_403_FORBIDDEN)
+        log_id = request.data.get('log_id')
+        if not log_id:
+            return Response({'error': 'log_id required'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            # Parse log_id: prescription_id-medicine_name-timestamp
+            parts = log_id.split('-', 2)
+            prescription_id = int(parts[0])
+            medicine_name = parts[1]
+            timestamp = int(parts[2])
+            scheduled_time = datetime.fromtimestamp(timestamp)
+            
+            prescription = Prescription.objects.get(id=prescription_id, patient=request.user)
+            
+            # Check if already taken
+            if TakenDose.objects.filter(
+                prescription=prescription,
+                medicine_name=medicine_name,
+                taken_at__date=scheduled_time.date(),
+                taken_at__hour=scheduled_time.hour
+            ).exists():
+                return Response({'error': 'Already marked'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            TakenDose.objects.create(
+                prescription=prescription,
+                medicine_name=medicine_name,
+                taken_at=timezone.now()
+            )
+            return Response({'message': 'Marked as taken'})
+        except (ValueError, Prescription.DoesNotExist):
+            return Response({'error': 'Invalid log_id'}, status=status.HTTP_400_BAD_REQUEST)
 
 from django.http import JsonResponse
 from .utils import send_sms  # assuming you saved the function in utils.py

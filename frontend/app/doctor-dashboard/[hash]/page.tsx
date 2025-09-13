@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { PatientList } from "@/components/dashboard/patient-list";
 import PatientView from "@/components/dashboard/patient-view";
+import { DoctorAppointmentRequests } from "@/components/dashboard/doctor-appointment-requests";
 import { getDoctorSidebarLinks, DoctorLogo, DoctorLogoIcon } from "@/components/dashboard/doctor-sidebar";
 import Protected from "@/components/auth/Protected";
 import { API_BASE_URL, MEDIA_BASE_URL } from "@/lib/config";
@@ -153,18 +154,18 @@ export default function DoctorDashboard() {
     }
   };
 
-  const handleSavePrescription = (prescription: { medicines: any[]; notes: string }) => {
+  const handleSavePrescription = (prescription: { medicines: any[]; notes: string; duration_days: number }) => {
     console.log("Saving prescription:", prescription);
     if (selectedPatient) {
       savePrescription(prescription);
     }
   };
 
-  const savePrescription = async (prescription: { medicines: any[]; notes: string }) => {
+  const savePrescription = async (prescription: { medicines: any[]; notes: string; duration_days: number }) => {
     if (!selectedPatient) return;
     const token = localStorage.getItem('access_token');
     try {
-      const response = await fetch(`${API_BASE_URL}/patients/${selectedPatient.id}/prescriptions/`, {
+      const response = await fetch(`${API_BASE_URL}/doctor/patients/${selectedPatient.id}/prescriptions/`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -256,7 +257,7 @@ const DoctorDashboardContent = ({
   onSelectPatient: (patient: Patient | null) => void;
   onAddPatient: (patientData: { name: string; phone: string; email: string }) => void;
   onRecordingComplete: (audioBlob: Blob) => void;
-  onSavePrescription: (prescription: { medicines: any[]; notes: string }) => void;
+  onSavePrescription: (prescription: { medicines: any[]; notes: string; duration_days: number }) => void;
 }) => {
   return (
     <div className="flex flex-1">
@@ -264,6 +265,7 @@ const DoctorDashboardContent = ({
         {!selectedPatient ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <PatientList patients={patients} onSelectPatient={onSelectPatient} onAddPatient={onAddPatient} />
+            <DoctorAppointmentRequests />
           </div>
         ) : selectedPatient && selectedPatient.id && selectedPatient.id !== 'undefined' && selectedPatient.name ? (
           <PatientView

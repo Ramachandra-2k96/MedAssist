@@ -30,7 +30,7 @@ interface Prescription {
 interface PrescriptionEditorProps {
   patientName: string
   patientId: string
-  onSave: (prescription: { medicines: Medicine[]; notes: string }) => void
+  onSave: (prescription: { medicines: Medicine[]; notes: string; duration_days: number }) => void
   onUpdate?: (prescriptionId: number, prescription: { medicines: Medicine[]; notes: string }) => void
   onDelete?: (prescriptionId: number) => void
 }
@@ -49,7 +49,8 @@ const frequencyOptions = [
   { value: "every-8-hours", label: "Every 8 hours" },
   { value: "every-12-hours", label: "Every 12 hours" },
   { value: "weekly", label: "Weekly" },
-  { value: "monthly", label: "Monthly" }
+  { value: "monthly", label: "Monthly" },
+  { value: "every-30-minutes", label: "Every 30 minutes (Test)" }
 ]
 
 const durationOptions = [
@@ -84,6 +85,7 @@ export function PrescriptionEditor({ patientName, patientId, onSave }: Prescript
     { name: "", dosage: "", frequency: "", duration: "", emoji: "💊", color: "#FF6B6B" }
   ])
   const [notes, setNotes] = useState("")
+  const [prescriptionDuration, setPrescriptionDuration] = useState("7-days")
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -145,12 +147,15 @@ export function PrescriptionEditor({ patientName, patientId, onSave }: Prescript
     const validMedicines = medicines.filter(med => med.name.trim() !== "")
     if (validMedicines.length === 0) return
 
+    const durationDays = parseInt(prescriptionDuration.split('-')[0]) || 7
+
     setSaving(true)
     try {
-      await onSave({ medicines: validMedicines, notes })
+      await onSave({ medicines: validMedicines, notes, duration_days: durationDays })
       // Reset form
       setMedicines([{ name: "", dosage: "", frequency: "", duration: "", emoji: "💊", color: "#FF6B6B" }])
       setNotes("")
+      setPrescriptionDuration("7-days")
       setShowAddForm(false)
       // Refresh prescriptions
       fetchPrescriptions()
@@ -365,6 +370,25 @@ export function PrescriptionEditor({ patientName, patientId, onSave }: Prescript
                 <Plus className="h-4 w-4 mr-2" />
                 Add Medicine
               </Button>
+
+              <div className="mt-4">
+                <Label htmlFor="prescription-duration">Prescription Duration</Label>
+                <Select
+                  value={prescriptionDuration}
+                  onValueChange={setPrescriptionDuration}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Select prescription duration" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {durationOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
               <div className="mt-4">
                 <Label htmlFor="notes">Additional Notes</Label>

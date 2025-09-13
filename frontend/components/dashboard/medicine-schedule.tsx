@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Pill, Clock } from "lucide-react"
 
 interface Medicine {
@@ -16,15 +17,25 @@ interface Medicine {
 
 interface MedicineScheduleProps {
   medicines: Medicine[]
+  hasPendingDoses?: boolean
+  onMarkTaken?: () => void
 }
 
-export function MedicineSchedule({ medicines }: MedicineScheduleProps) {
+export function MedicineSchedule({ medicines, hasPendingDoses = false, onMarkTaken }: MedicineScheduleProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Pill className="h-5 w-5" />
-          Medicine Schedule
+        <CardTitle className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Pill className="h-5 w-5" />
+            Medicine Schedule
+          </div>
+          {hasPendingDoses && onMarkTaken && (
+            <Button onClick={onMarkTaken} size="sm" className="flex items-center gap-2">
+              <span className="text-lg">💊</span>
+              Take Medication
+            </Button>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent>

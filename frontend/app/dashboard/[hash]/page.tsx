@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react'
 import { MedicineSchedule } from '@/components/dashboard/medicine-schedule'
-import { AppointmentReminders } from '@/components/dashboard/appointment-reminders'
+import { PatientAppointmentRequest } from '@/components/dashboard/patient-appointment-request'
 import { Button } from '@/components/ui/button'
 import { apiFetch } from '@/lib/api'
 import Protected from '@/components/auth/Protected'
@@ -19,16 +19,36 @@ const DashboardContent = () => {
   const [loading, setLoading] = useState(true)
   const [selectedDoctorId, setSelectedDoctorId] = useState<number | null>(null)
   const [linkedDoctors, setLinkedDoctors] = useState<any[]>([])
+  const [hasPendingDoses, setHasPendingDoses] = useState(false)
 
 
   useEffect(() => { fetchDoctors() }, [])
   useEffect(() => { fetchDashboard() }, [selectedDoctorId])
+  useEffect(() => { fetchMedicationLogs() }, [])
 
   const fetchDoctors = async () => {
     try {
       const data:any[] = await apiFetch('/patient/doctors/') as any
       setLinkedDoctors(data||[])
       if (!selectedDoctorId && data && data.length) setSelectedDoctorId(data[0].id)
+    } catch(e){ console.error(e) }
+  }
+
+  const fetchMedicationLogs = async () => {
+    try {
+      const data: any[] = await apiFetch('/patient/medication-logs/') as any
+      setHasPendingDoses(data.some(log => log.status === 'pending'))
+    } catch(e){ console.error(e) }
+  }
+
+    const markAllTaken = async () => {
+    try {
+      const logs: any[] = await apiFetch('/patient/medication-logs/') as any
+      const pendingLogs = logs.filter(log => log.status === 'pending')
+      for (const log of pendingLogs) {
+        await apiFetch('/patient/medication-logs/', { method: 'POST', body: JSON.stringify({ log_id: log.id }) })
+      }
+      fetchMedicationLogs()  // Refresh
     } catch(e){ console.error(e) }
   }
 
@@ -83,9 +103,8 @@ const DashboardContent = () => {
           )}
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <MedicineSchedule medicines={medicines} />
-          {/* Appointments mock retained as per instruction */}
-          <AppointmentReminders appointments={[]} />
+          <MedicineSchedule medicines={medicines} hasPendingDoses={hasPendingDoses} onMarkTaken={markAllTaken} />
+          <PatientAppointmentRequest />
         </div>
       </div>
   );

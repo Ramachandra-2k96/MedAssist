@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User, Group
 from django.contrib.auth import authenticate
-from .models import Profile, DoctorPatient, Record, AudioRecording, ChatMessage, Prescription
+from .models import Profile, DoctorPatient, Record, AudioRecording, ChatMessage, Prescription, Appointment, TakenDose
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -105,13 +105,22 @@ class PrescriptionSerializer(serializers.ModelSerializer):
     doctor_name = serializers.SerializerMethodField()
     class Meta:
         model = Prescription
-        fields = ('id', 'doctor', 'doctor_name', 'patient', 'medicines', 'notes', 'created_at')
+        fields = ('id', 'doctor', 'doctor_name', 'patient', 'medicines', 'notes', 'duration_days', 'created_at')
 
     def get_doctor_name(self, obj):
         try:
             return obj.doctor.profile.name or obj.doctor.get_full_name() or obj.doctor.username
         except Exception:
             return None
+
+class TakenDoseSerializer(serializers.ModelSerializer):
+    prescription_title = serializers.SerializerMethodField()
+    class Meta:
+        model = TakenDose
+        fields = ('id', 'prescription', 'prescription_title', 'medicine_name', 'taken_at')
+
+    def get_prescription_title(self, obj):
+        return f"Prescription by {obj.prescription.doctor.profile.name or obj.prescription.doctor.username}"
 
 class DoctorBasicSerializer(serializers.ModelSerializer):
     name = serializers.SerializerMethodField()
@@ -133,6 +142,34 @@ class DoctorBasicSerializer(serializers.ModelSerializer):
         except Exception:
             return None
         return None
+
+class AppointmentSerializer(serializers.ModelSerializer):
+    doctor_name = serializers.SerializerMethodField()
+    patient_name = serializers.SerializerMethodField()
+    patient_phone = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Appointment
+        fields = ('id', 'doctor', 'doctor_name', 'patient', 'patient_name', 'patient_phone', 'requested_start_date', 'requested_end_date', 'status', 'booked_date', 'booked_time', 'notes', 'created_at', 'updated_at')
+        read_only_fields = ('created_at', 'updated_at')
+
+    def get_doctor_name(self, obj):
+        try:
+            return obj.doctor.profile.name or obj.doctor.get_full_name() or obj.doctor.username
+        except Exception:
+            return obj.doctor.username
+
+    def get_patient_name(self, obj):
+        try:
+            return obj.patient.profile.name or obj.patient.get_full_name() or obj.patient.username
+        except Exception:
+            return obj.patient.username
+
+    def get_patient_phone(self, obj):
+        try:
+            return obj.patient.profile.phone_number
+        except Exception:
+            return None
 
 class SignupSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)

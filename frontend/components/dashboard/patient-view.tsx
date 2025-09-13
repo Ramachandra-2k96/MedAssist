@@ -5,6 +5,7 @@ import { PatientRecords } from "@/components/dashboard/patient-records";
 import { PatientRecordings } from "@/components/dashboard/patient-recordings";
 import { PatientChat } from "@/components/dashboard/patient-chat";
 import { PrescriptionEditor } from "@/components/dashboard/prescription-editor";
+import { PatientAppointments } from "@/components/dashboard/patient-appointments";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -12,7 +13,7 @@ type Props = {
   patientName: string;
   onBack?: () => void;
   onRecordingComplete?: (b: Blob) => void;
-  onSavePrescription?: (p: { medicines: any[]; notes: string }) => void;
+  onSavePrescription?: (p: { medicines: any[]; notes: string; duration_days: number }) => void;
 };
 
 export const PatientView: React.FC<Props> = ({
@@ -22,7 +23,7 @@ export const PatientView: React.FC<Props> = ({
   onRecordingComplete,
   onSavePrescription,
 }) => {
-  const [active, setActive] = useState<"records" | "recordings" | "chat" | "prescription">("records");
+  const [active, setActive] = useState<"records" | "recordings" | "chat" | "prescription" | "appointments">("records");
 
   return (
     <div className="space-y-6">
@@ -83,6 +84,17 @@ export const PatientView: React.FC<Props> = ({
           >
             Prescription
           </button>
+          <button
+            onClick={() => setActive("appointments")}
+            className={cn(
+              "px-3 py-1 rounded-md text-sm font-medium",
+              active === "appointments"
+                ? "bg-blue-600 text-white"
+                : "bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-200"
+            )}
+          >
+            Appointments
+          </button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -98,6 +110,9 @@ export const PatientView: React.FC<Props> = ({
               // PrescriptionEditor expects a required onSave; provide a no-op when not passed
               onSave={onSavePrescription ?? (() => undefined)}
             />
+          )}
+          {active === "appointments" && (
+            <PatientAppointments patientId={patientId} patientName={patientName} />
           )}
         </div>
       </div>

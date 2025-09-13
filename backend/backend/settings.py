@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
     "accounts",
+    "django_crontab",
 ]
 
 MIDDLEWARE = [
@@ -117,6 +118,27 @@ USE_I18N = True
 USE_TZ = True
 
 
+# Logging
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': BASE_DIR / 'logs/cron.log',
+        },
+    },
+    'loggers': {
+        'accounts.cron': {
+            'handlers': ['file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}
+
+
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
@@ -170,4 +192,8 @@ TWILIO_FROM_NUMBER = env("TWILIO_FROM_NUMBER")
 
 AWS_ACCESS_KEY_ID = env("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = env("AWS_SECRET_ACCESS_KEY")
+
+CRONJOBS = [
+    ('*/1 * * * *', 'accounts.cron.send_medication_reminders'),
+]
 AWS_REGION = env("AWS_REGION")

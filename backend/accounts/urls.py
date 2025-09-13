@@ -14,6 +14,9 @@ from .views import (
     PatientChatManageView,
     PatientPrescriptionsViewPublic,
     PatientDoctorsView,
+    PatientAppointmentsView,
+    DoctorAppointmentsView,
+    PatientMedicationLogsView,
 )
 from .views import LogoutView, test_sms
 
@@ -33,6 +36,10 @@ urlpatterns = [
     path('patient/chat/', PatientChatManageView.as_view(), name='patient_chat_manage'),
     path('patient/prescriptions/', PatientPrescriptionsViewPublic.as_view(), name='patient_prescriptions_public'),
     path('patient/doctors/', PatientDoctorsView.as_view(), name='patient_doctors'),
+    path('patient/appointments/', PatientAppointmentsView.as_view(), name='patient_appointments'),
+    path('doctor/appointments/', DoctorAppointmentsView.as_view(), name='doctor_appointments'),
+    path('doctor/appointments/<int:appointment_id>/', DoctorAppointmentsView.as_view(), name='doctor_appointment_detail'),
+    path('patient/medication-logs/', PatientMedicationLogsView.as_view(), name='patient_medication_logs'),
     path('logout/', LogoutView.as_view(), name='logout'),
     path('test-sms/', test_sms, name='test_sms'),  # New endpoint for testing SMS
 ]
