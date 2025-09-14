@@ -519,6 +519,26 @@ class PatientDoctorsView(APIView):
         return Response(data)
 
 
+class PatientAIChatView(APIView):
+    """Simple passthrough AI chat endpoint: echoes message + user id back in reply."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        # Only patients allowed to call this endpoint (frontend requirement)
+        if not request.user.groups.filter(name='Patient').exists():
+            return Response({'error': 'Only patients can access this'}, status=status.HTTP_403_FORBIDDEN)
+
+        user_id = request.data.get('user_id') or request.data.get('user')
+        message = request.data.get('message') or request.data.get('text')
+        if not message:
+            return Response({'error': 'message required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Build a simple echo reply as requested: "<message> <user_id>"
+        uid = str(user_id or request.user.id)
+        reply = f"{message} {uid}"
+        return Response({'reply': reply, 'user_id': uid}, status=status.HTTP_200_OK)
+
+
 class PatientAppointmentsView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -569,6 +589,43 @@ class DoctorAppointmentsView(APIView):
         appointments = Appointment.objects.filter(doctor=request.user).order_by('-created_at')
         serializer = AppointmentSerializer(appointments, many=True)
         return Response(serializer.data)
+
+    def post(self, request):
+        if not request.user.groups.filter(name='Doctor').exists():
+            return Response({'error': 'Only doctors can access this'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # Validate that the doctor has access to the patient
+        patient_id = request.data.get('patient')
+        if not patient_id:
+            return Response({'error': 'Patient ID is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            patient = User.objects.get(id=patient_id, groups__name='Patient')
+        except User.DoesNotExist:
+            return Response({'error': 'Patient not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Check if doctor-patient relationship exists
+        if not DoctorPatient.objects.filter(doctor=request.user, patient=patient).exists():
+            return Response({'error': 'You can only create appointments for your patients'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # Create appointment data
+        appointment_data = request.data.copy()
+        appointment_data['doctor'] = request.user.id
+        
+        serializer = AppointmentSerializer(data=appointment_data)
+        if serializer.is_valid():
+            appointment = serializer.save()
+            # Send SMS notification to patient
+            try:
+                from .utils import send_sms
+                patient_phone = appointment.patient.profile.phone_number
+                if patient_phone:
+                    message = f"Dr. {request.user.profile.name or request.user.username} has scheduled an appointment for you on {appointment.booked_date} at {appointment.booked_time}."
+                    send_sms(message, patient_phone)
+            except Exception as e:
+                print(f"SMS failed: {e}")
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def patch(self, request, appointment_id):
         if not request.user.groups.filter(name='Doctor').exists():

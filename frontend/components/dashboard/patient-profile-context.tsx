@@ -1,6 +1,7 @@
 "use client";
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { API_BASE_URL } from '@/lib/config';
+import { apiFetch } from '@/lib/api';
 
 interface PatientProfile { id:number; name?:string|null; email?:string; photo_url?:string|null; role?:string }
 interface Ctx { profile: PatientProfile | null; loading:boolean; refresh:()=>void }
@@ -19,10 +20,7 @@ export const PatientProfileProvider = ({ children }: { children: React.ReactNode
         try { setProfile(JSON.parse(stored)); } catch {}
       }
       // ping endpoint to validate token
-      const token = localStorage.getItem('access_token');
-      if (token) {
-        await fetch(`${API_BASE_URL}/patient/dashboard/`, { headers:{ 'Authorization':`Bearer ${token}` } });
-      }
+      await apiFetch('/patient/dashboard/');
     } catch(e){ console.error(e); } finally { setLoading(false); }
   };
   useEffect(()=> { load(); }, []);

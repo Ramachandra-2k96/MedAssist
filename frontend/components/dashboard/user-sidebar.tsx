@@ -4,7 +4,9 @@ import {
   IconArrowLeft,
   IconBrandTabler,
   IconMessage,
-  IconFileText,
+  IconRobot,
+  IconSpeakerphone,
+  IconFolder,
   IconCalendar,
   IconPill,
 } from "@tabler/icons-react";
@@ -38,14 +40,14 @@ export const getUserSidebarLinks = (hash: string) => [
     label: "Records",
     href: `/dashboard/${hash}/records`,
     icon: (
-      <IconFileText className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
+      <IconFolder className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
     ),
   },
   {
     label: "Recordings",
     href: `/dashboard/${hash}/recordings`,
     icon: (
-      <IconMessage className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
+      <IconSpeakerphone className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
     ),
   },
   {
@@ -53,6 +55,13 @@ export const getUserSidebarLinks = (hash: string) => [
     href: `/dashboard/${hash}/chat`,
     icon: (
       <IconMessage className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
+    ),
+  },
+  {
+    label: "AI Chat",
+    href: `/dashboard/${hash}/ai`,
+    icon: (
+      <IconRobot className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />
     ),
   },
   {

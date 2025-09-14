@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState } from 'react'
 import { API_BASE_URL } from '@/lib/config'
+import { apiFetch } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { ChatCenter } from '@/components/dashboard/chat-center'
 
@@ -8,7 +9,7 @@ export default function ChatPage(){
   const [linkedDoctors, setLinkedDoctors] = useState<any[]>([]);
   const [selectedDoctorId, setSelectedDoctorId] = useState<number|null>(null);
   useEffect(()=>{ (async()=>{
-    try { const token = localStorage.getItem('access_token'); if(!token) return; const resp = await fetch(`${API_BASE_URL}/patient/doctors/`, { headers:{'Authorization':`Bearer ${token}`} }); if(resp.ok){ const data = await resp.json(); setLinkedDoctors(data); if(!selectedDoctorId && data.length) setSelectedDoctorId(data[0].id); } } catch(e){ console.error(e)}
+    try { const data = await apiFetch('/patient/doctors/'); setLinkedDoctors(data); if(!selectedDoctorId && data.length) setSelectedDoctorId(data[0].id); } catch(e){ console.error(e)}
   })(); }, []);
   return (
     <div className="space-y-4">

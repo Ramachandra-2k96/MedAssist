@@ -17,6 +17,7 @@ from .views import (
     PatientAppointmentsView,
     DoctorAppointmentsView,
     PatientMedicationLogsView,
+    PatientAIChatView,
 )
 from .views import LogoutView, test_sms
 
@@ -36,6 +37,7 @@ urlpatterns = [
     path('patient/chat/', PatientChatManageView.as_view(), name='patient_chat_manage'),
     path('patient/prescriptions/', PatientPrescriptionsViewPublic.as_view(), name='patient_prescriptions_public'),
     path('patient/doctors/', PatientDoctorsView.as_view(), name='patient_doctors'),
+    path('patient/ai-chat/', PatientAIChatView.as_view(), name='patient_ai_chat'),
     path('patient/appointments/', PatientAppointmentsView.as_view(), name='patient_appointments'),
     path('doctor/appointments/', DoctorAppointmentsView.as_view(), name='doctor_appointments'),
     path('doctor/appointments/<int:appointment_id>/', DoctorAppointmentsView.as_view(), name='doctor_appointment_detail'),

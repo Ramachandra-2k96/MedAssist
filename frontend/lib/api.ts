@@ -19,6 +19,19 @@ export async function apiFetch<T=any>(path: string, { auth = true, tokenOverride
   const url = path.startsWith('http') ? path : `${API_BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`
   const resp = await fetch(url, { ...rest, headers: finalHeaders })
   if (!resp.ok) {
+    // Handle authentication errors
+    if (resp.status === 401 || resp.status === 403) {
+      // Clear invalid token and redirect to login
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('access_token')
+        localStorage.removeItem('refresh_token')
+        window.location.href = '/login'
+      }
+      const err: any = new Error('Authentication failed. Redirecting to login.')
+      err.status = resp.status
+      throw err
+    }
+
     let detail: any = null
     try { detail = await resp.json() } catch { /* ignore */ }
     const err: any = new Error(`Request failed ${resp.status}`)

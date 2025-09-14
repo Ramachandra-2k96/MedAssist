@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { API_BASE_URL } from '@/lib/config'
 import { buildMediaUrl } from '@/lib/media'
+import { apiFetch } from '@/lib/api'
 import { Trash2, Upload } from 'lucide-react'
 import { useToast } from '@/components/ui/use-toast'
 
@@ -24,14 +25,16 @@ export function PatientSelfRecords({ doctorId }: { doctorId: number | null }) {
   const fetchRecords = async () => {
     setLoading(true)
     try {
-      const token = localStorage.getItem('access_token')
-      if (!token) return
       const url = new URL(`${API_BASE_URL}/patient/records/`)
       if (doctorId) url.searchParams.set('doctor_id', String(doctorId))
-      const resp = await fetch(url.toString(), { headers:{ 'Authorization':`Bearer ${token}` } })
-      if (resp.ok) setRecords(await resp.json())
-      else { const detail = await resp.json().catch(()=>null); toast({ title:'Failed to load records', description: detail? JSON.stringify(detail):'Unexpected error', variant:'destructive' as any }) }
-    } catch(e){ console.error(e); toast({ title:'Failed to load records', description: String(e), variant:'destructive' as any }) } finally { setLoading(false) }
+      const data = await apiFetch(url.pathname + url.search)
+      setRecords(data)
+    } catch(e){ 
+      console.error(e); 
+      toast({ title:'Failed to load records', description: String(e), variant:'destructive' as any }) 
+    } finally { 
+      setLoading(false) 
+    }
   }
 
   const addRecord = async () => {
@@ -40,26 +43,33 @@ export function PatientSelfRecords({ doctorId }: { doctorId: number | null }) {
     if (!form.file) { toast({ title:'File required', description:'Please attach a document before submitting.', variant:'destructive' as any }); return }
     setAdding(true)
     try {
-      const token = localStorage.getItem('access_token')
       const fd = new FormData()
       fd.append('doctor', String(doctorId))
       fd.append('type', form.type)
       fd.append('title', form.title)
       if (form.file) fd.append('file', form.file)
-      const resp = await fetch(`${API_BASE_URL}/patient/records/`, { method:'POST', headers:{ 'Authorization':`Bearer ${token}` }, body: fd })
-      if (resp.ok) { await fetchRecords(); setForm({ type:'', title:'', file:null }); toast({ title:'Record uploaded' }) }
-      else { const detail = await resp.json().catch(()=>null); toast({ title:'Upload failed', description: detail? JSON.stringify(detail):'Unexpected error', variant:'destructive' as any }) }
-    } catch(e){ console.error(e); toast({ title:'Upload failed', description:String(e), variant:'destructive' as any }) } finally { setAdding(false) }
+      await apiFetch('/patient/records/', { method:'POST', body: fd, asForm: true })
+      await fetchRecords()
+      setForm({ type:'', title:'', file:null })
+      toast({ title:'Record uploaded' })
+    } catch(e){ 
+      console.error(e); 
+      toast({ title:'Upload failed', description:String(e), variant:'destructive' as any }) 
+    } finally { 
+      setAdding(false) 
+    }
   }
 
   const delRecord = async (id:number, uploaded_by:string) => {
     if (uploaded_by !== 'patient') return // cannot delete doctor's
     try {
-      const token = localStorage.getItem('access_token')
-      const resp = await fetch(`${API_BASE_URL}/patient/records/`, { method:'DELETE', headers:{ 'Authorization':`Bearer ${token}`, 'Content-Type':'application/json' }, body: JSON.stringify({ record_id: id }) })
-      if (resp.status === 204) { setRecords(prev=> prev.filter(r=> r.id!==id)); toast({ title:'Record deleted' }) }
-      else { const detail = await resp.json().catch(()=>null); toast({ title:'Delete failed', description: detail? JSON.stringify(detail):'Unexpected error', variant:'destructive' as any }) }
-    } catch(e){ console.error(e); toast({ title:'Delete failed', description:String(e), variant:'destructive' as any }) }
+      await apiFetch('/patient/records/', { method:'DELETE', body: JSON.stringify({ record_id: id }) })
+      setRecords(prev=> prev.filter(r=> r.id!==id))
+      toast({ title:'Record deleted' })
+    } catch(e){ 
+      console.error(e); 
+      toast({ title:'Delete failed', description:String(e), variant:'destructive' as any }) 
+    }
   }
 
   return (

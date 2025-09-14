@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Pill, Clock, Plus, Trash2, Save, FileText, Calendar, Timer } from "lucide-react"
 import { API_BASE_URL } from "@/lib/config"
+import { apiFetch } from "@/lib/api"
 
 interface Medicine {
   name: string
@@ -99,25 +100,17 @@ export function PrescriptionEditor({ patientName, patientId, onSave }: Prescript
 
   const fetchPrescriptions = async () => {
     try {
-      const token = localStorage.getItem('access_token')
-      const response = await fetch(`${API_BASE_URL}/doctor/patients/${patientId}/prescriptions/`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        // Add default emoji and color to medicines that don't have them
-        const processedData = data.map((prescription: Prescription) => ({
-          ...prescription,
-          medicines: prescription.medicines.map((medicine: Medicine) => ({
-            ...medicine,
-            emoji: medicine.emoji || medicineEmojis[Math.floor(Math.random() * medicineEmojis.length)],
-            color: medicine.color || medicineColors[Math.floor(Math.random() * medicineColors.length)]
-          }))
+      const data = await apiFetch(`/doctor/patients/${patientId}/prescriptions/`)
+      // Add default emoji and color to medicines that don't have them
+      const processedData = data.map((prescription: Prescription) => ({
+        ...prescription,
+        medicines: prescription.medicines.map((medicine: Medicine) => ({
+          ...medicine,
+          emoji: medicine.emoji || medicineEmojis[Math.floor(Math.random() * medicineEmojis.length)],
+          color: medicine.color || medicineColors[Math.floor(Math.random() * medicineColors.length)]
         }))
-        setPrescriptions(processedData)
-      }
+      }))
+      setPrescriptions(processedData)
     } catch (error) {
       console.error('Error fetching prescriptions:', error)
     } finally {
@@ -166,21 +159,77 @@ export function PrescriptionEditor({ patientName, patientId, onSave }: Prescript
 
   const handleDeletePrescription = async (prescriptionId: number) => {
     try {
-      const token = localStorage.getItem('access_token')
-      const response = await fetch(`${API_BASE_URL}/doctor/patients/${patientId}/prescriptions/`, {
+      await apiFetch(`/doctor/patients/${patientId}/prescriptions/`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify({ prescription_id: prescriptionId })
       })
-
-      if (response.ok) {
-        setPrescriptions(prescriptions.filter(p => p.id !== prescriptionId))
-      }
+      setPrescriptions(prescriptions.filter(p => p.id !== prescriptionId))
     } catch (error) {
       console.error('Error deleting prescription:', error)
+    }
+  }
+
+  // Create a printable HTML and open print dialog
+  const handlePrintPrescriptions = () => {
+    try {
+      const printable = prescriptions.map(p => {
+        const medsHtml = (p.medicines || []).map((m: Medicine) => `
+          <tr>
+            <td style="padding:8px;border:1px solid #ddd">${m.emoji || '💊'} ${m.name}</td>
+            <td style="padding:8px;border:1px solid #ddd">${m.dosage || ''}</td>
+            <td style="padding:8px;border:1px solid #ddd">${m.frequency || ''}</td>
+            <td style="padding:8px;border:1px solid #ddd">${m.duration || ''}</td>
+          </tr>
+        `).join('')
+
+        return `
+          <div style="margin-bottom:24px">
+            <h3 style="margin:0 0 8px 0">Prescription - ${new Date(p.created_at).toLocaleString()}</h3>
+            <table style="border-collapse:collapse;width:100%;font-family:Arial,Helvetica,sans-serif"> 
+              <thead>
+                <tr>
+                  <th style="padding:8px;border:1px solid #ddd;text-align:left">Medicine</th>
+                  <th style="padding:8px;border:1px solid #ddd;text-align:left">Dosage</th>
+                  <th style="padding:8px;border:1px solid #ddd;text-align:left">Frequency</th>
+                  <th style="padding:8px;border:1px solid #ddd;text-align:left">Duration</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${medsHtml}
+              </tbody>
+            </table>
+            ${p.notes ? `<p style="margin-top:8px"><strong>Notes:</strong> ${p.notes}</p>` : ''}
+          </div>
+        `
+      }).join('\n')
+
+      const html = `
+        <html>
+          <head>
+            <title>Prescriptions - ${patientName}</title>
+            <meta name="viewport" content="width=device-width,initial-scale=1" />
+          </head>
+          <body style="padding:16px;">
+            <h1>Prescriptions for ${patientName}</h1>
+            ${printable}
+          </body>
+        </html>
+      `
+
+      const newWindow = window.open('', '_blank')
+      if (newWindow) {
+        newWindow.document.open()
+        newWindow.document.write(html)
+        newWindow.document.close()
+        // Give browser a moment to render before printing
+        setTimeout(() => {
+          newWindow.print()
+        }, 500)
+      } else {
+        console.error('Unable to open print window')
+      }
+    } catch (e) {
+      console.error('Error printing prescriptions', e)
     }
   }
 
@@ -201,10 +250,16 @@ export function PrescriptionEditor({ patientName, patientId, onSave }: Prescript
                 <FileText className="h-4 w-4" />
                 Existing Prescriptions
               </Label>
-              <Button onClick={() => setShowAddForm(!showAddForm)} variant="outline" size="sm">
-                <Plus className="h-4 w-4 mr-2" />
-                {showAddForm ? 'Cancel' : 'Add Prescription'}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button onClick={() => handlePrintPrescriptions()} variant="ghost" size="sm">
+                  <FileText className="h-4 w-4 mr-2" />
+                  Download / Print
+                </Button>
+                <Button onClick={() => setShowAddForm(!showAddForm)} variant="outline" size="sm">
+                  <Plus className="h-4 w-4 mr-2" />
+                  {showAddForm ? 'Cancel' : 'Add Prescription'}
+                </Button>
+              </div>
             </div>
 
             {loading ? (

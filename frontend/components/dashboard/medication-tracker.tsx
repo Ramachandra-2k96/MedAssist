@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Clock, CheckCircle, AlertCircle } from "lucide-react"
 import { API_BASE_URL } from "@/lib/config"
+import { apiFetch } from "@/lib/api"
 
 interface MedicationLog {
   id: string | number
@@ -28,16 +29,8 @@ export function MedicationTracker() {
 
   const fetchLogs = async () => {
     try {
-      const token = localStorage.getItem('access_token')
-      const response = await fetch(`${API_BASE_URL}/patient/medication-logs/`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setLogs(data)
-      }
+      const data = await apiFetch('/patient/medication-logs/')
+      setLogs(data)
     } catch (error) {
       console.error('Error fetching medication logs:', error)
     } finally {
@@ -48,19 +41,12 @@ export function MedicationTracker() {
   const markAsTaken = async (logId: string | number) => {
     setMarking(logId)
     try {
-      const token = localStorage.getItem('access_token')
-      const response = await fetch(`${API_BASE_URL}/patient/medication-logs/`, {
+      await apiFetch('/patient/medication-logs/', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify({ log_id: logId })
       })
-      if (response.ok) {
-        // Refresh logs
-        fetchLogs()
-      }
+      // Refresh logs
+      fetchLogs()
     } catch (error) {
       console.error('Error marking as taken:', error)
     } finally {

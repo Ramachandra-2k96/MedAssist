@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { API_BASE_URL } from '@/lib/config'
 import { buildMediaUrl } from '@/lib/media'
+import { apiFetch } from '@/lib/api'
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition'
 import { Mic, MicOff, FileAudio, Play, Pause, Languages, Trash2, Upload } from 'lucide-react'
 import { useToast } from '@/components/ui/use-toast'
@@ -47,20 +48,22 @@ export function PatientAudioSection({ doctorId }: { doctorId: number | null }) {
   // sync prop -> internal
   useEffect(()=> { if (doctorId !== null) setEffectiveDoctorId(doctorId) }, [doctorId])
   // if no doctor provided (dedicated page) fetch list and auto pick first
-  useEffect(()=> { if (doctorId === null) { (async()=> { try { const token = localStorage.getItem('access_token'); if(!token) return; const resp = await fetch(`${API_BASE_URL}/patient/doctors/`, { headers:{'Authorization':`Bearer ${token}`} }); if(resp.ok){ const data = await resp.json(); if(data.length) setEffectiveDoctorId(data[0].id); } } catch(e){ console.error(e)} })(); } }, [doctorId])
+  useEffect(()=> { if (doctorId === null) { (async()=> { try { const data = await apiFetch('/patient/doctors/'); if(data.length) setEffectiveDoctorId(data[0].id); } catch(e){ console.error(e)} })(); } }, [doctorId])
 
   useEffect(()=>{ fetchRecordings() }, [effectiveDoctorId])
 
   const fetchRecordings = async () => {
     try {
-      const token = localStorage.getItem('access_token')
-      if (!token) return
       const url = new URL(`${API_BASE_URL}/patient/audio/`)
-  if (effectiveDoctorId) url.searchParams.set('doctor_id', String(effectiveDoctorId))
-      const resp = await fetch(url.toString(), { headers:{ 'Authorization': `Bearer ${token}` } })
-      if (resp.ok) setRecordings(await resp.json())
-      else { const detail = await resp.json().catch(()=>null); toast({ title:'Failed to load recordings', description: detail? JSON.stringify(detail):'Unexpected error', variant:'destructive' as any }) }
-    } catch(e){ console.error(e); toast({ title:'Failed to load recordings', description:String(e), variant:'destructive' as any }) } finally { setLoading(false) }
+      if (effectiveDoctorId) url.searchParams.set('doctor_id', String(effectiveDoctorId))
+      const data = await apiFetch(url.pathname + url.search)
+      setRecordings(data)
+    } catch(e){ 
+      console.error(e); 
+      toast({ title:'Failed to load recordings', description:String(e), variant:'destructive' as any }) 
+    } finally { 
+      setLoading(false) 
+    }
   }
 
   const langCode = (l:string) => ({ en:'en-US', kn:'kn-IN', es:'es-ES', fr:'fr-FR', de:'de-DE', hi:'hi-IN', zh:'zh-CN', ja:'ja-JP' }[l]||'en-US')
@@ -100,18 +103,21 @@ export function PatientAudioSection({ doctorId }: { doctorId: number | null }) {
   const uploadBlob = async (blob: Blob, transcription: string) => {
     setUploading(true)
     try {
-      const token = localStorage.getItem('access_token')
-      if (!token) return
       const fd = new FormData()
-  fd.append('doctor', String(effectiveDoctorId))
+      fd.append('doctor', String(effectiveDoctorId))
       fd.append('title', `Recording ${new Date().toLocaleTimeString()}`)
       fd.append('audio_file', blob, 'recording.webm')
       fd.append('transcription', transcription)
       fd.append('language', selectedLanguage)
-      const resp = await fetch(`${API_BASE_URL}/patient/audio/`, { method:'POST', headers:{ 'Authorization': `Bearer ${token}` }, body: fd })
-      if (resp.ok) { await fetchRecordings(); toast({ title:'Recording uploaded' }) }
-      else { const detail = await resp.json().catch(()=>null); toast({ title:'Upload failed', description: detail? JSON.stringify(detail):'Unexpected error', variant:'destructive' as any }) }
-    } catch(e){ console.error(e); toast({ title:'Upload failed', description:String(e), variant:'destructive' as any }) } finally { setUploading(false) }
+      await apiFetch('/patient/audio/', { method:'POST', body: fd, asForm: true })
+      await fetchRecordings()
+      toast({ title:'Recording uploaded' })
+    } catch(e){ 
+      console.error(e); 
+      toast({ title:'Upload failed', description:String(e), variant:'destructive' as any }) 
+    } finally { 
+      setUploading(false) 
+    }
   }
 
   // Removed manual file upload per requirement
@@ -133,10 +139,13 @@ export function PatientAudioSection({ doctorId }: { doctorId: number | null }) {
 
   const deleteRecording = async (id:number) => {
     try {
-      const token = localStorage.getItem('access_token')
-      const resp = await fetch(`${API_BASE_URL}/patient/audio/`, { method:'DELETE', headers:{ 'Authorization':`Bearer ${token}`, 'Content-Type':'application/json' }, body: JSON.stringify({ recording_id: id }) })
-      if (resp.status === 204) { setRecordings(prev=> prev.filter(r=> r.id!==id)); toast({ title:'Recording deleted' }) }
-    } catch(e){ console.error(e); toast({ title:'Delete failed', description:String(e), variant:'destructive' as any }) }
+      await apiFetch('/patient/audio/', { method:'DELETE', body: JSON.stringify({ recording_id: id }) })
+      setRecordings(prev=> prev.filter(r=> r.id!==id))
+      toast({ title:'Recording deleted' })
+    } catch(e){ 
+      console.error(e); 
+      toast({ title:'Delete failed', description:String(e), variant:'destructive' as any }) 
+    }
   }
 
   return (

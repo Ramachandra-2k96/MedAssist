@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { PatientList } from "@/components/dashboard/patient-list";
 import PatientView from "@/components/dashboard/patient-view";
 import { API_BASE_URL, MEDIA_BASE_URL } from "@/lib/config";
+import { apiFetch } from "@/lib/api";
 import Protected from "@/components/auth/Protected";
 import { Stethoscope } from "lucide-react";
 
@@ -38,56 +39,30 @@ export default function PatientsPage() {
   }, []);
 
   const fetchDoctorProfile = async () => {
-    const token = localStorage.getItem('access_token');
-    if (!token) {
-      window.location.href = '/doctor-login';
-      return;
-    }
     try {
-      const response = await fetch(`${API_BASE_URL}/doctor/profile/`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setDoctorProfile(data);
-      }
+      const data = await apiFetch('/doctor/profile/')
+      setDoctorProfile(data)
     } catch (error) {
       console.error('Error fetching doctor profile:', error);
     }
   };
 
   const fetchPatients = async () => {
-    const token = localStorage.getItem('access_token');
-    if (!token) {
-      window.location.href = '/doctor-login';
-      return;
-    }
     try {
-      const response = await fetch(`${API_BASE_URL}/doctor/patients/`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        const formattedPatients: Patient[] = data
-          .filter((dp: any) => dp.patient && dp.patient.id)
-          .map((dp: any) => ({
-            id: dp.patient.id?.toString() || '',
-            name: dp.patient_name || dp.patient.profile?.name || dp.patient.username || 'Unknown',
-            phone: dp.phone || '',
-            email: dp.patient.email || '',
-            lastVisit: dp.added_at || '',
-            status: 'active' as const,
-            adherence: 0,
-          }))
-          .filter((patient: Patient) => patient.id && patient.name);
-        setPatients(formattedPatients);
-      } else {
-        console.error('Failed to fetch patients');
-      }
+      const data = await apiFetch('/doctor/patients/')
+      const formattedPatients: Patient[] = data
+        .filter((dp: any) => dp.patient && dp.patient.id)
+        .map((dp: any) => ({
+          id: dp.patient.id?.toString() || '',
+          name: dp.patient_name || dp.patient.profile?.name || dp.patient.username || 'Unknown',
+          phone: dp.phone || '',
+          email: dp.patient.email || '',
+          lastVisit: dp.added_at || '',
+          status: 'active' as const,
+          adherence: 0,
+        }))
+        .filter((patient: Patient) => patient.id && patient.name);
+      setPatients(formattedPatients);
     } catch (error) {
       console.error('Error fetching patients:', error);
     }
@@ -99,21 +74,12 @@ export default function PatientsPage() {
   };
 
   const handleAddPatient = async (patientData: { name: string; phone: string; email: string }) => {
-    const token = localStorage.getItem('access_token');
     try {
-      const response = await fetch(`${API_BASE_URL}/doctor/patients/`, {
+      await apiFetch('/doctor/patients/', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ email: patientData.email }),
-      });
-      if (response.ok) {
-        fetchPatients();
-      } else {
-        console.error('Failed to add patient');
-      }
+      })
+      fetchPatients()
     } catch (error) {
       console.error('Error adding patient:', error);
     }
@@ -128,21 +94,12 @@ export default function PatientsPage() {
 
   const savePrescription = async (prescription: { medicines: any[]; notes: string }) => {
     if (!selectedPatient) return;
-    const token = localStorage.getItem('access_token');
     try {
-      const response = await fetch(`${API_BASE_URL}/doctor/patients/${selectedPatient.id}/prescriptions/`, {
+      await apiFetch(`/doctor/patients/${selectedPatient.id}/prescriptions/`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify(prescription),
-      });
-      if (response.ok) {
-        console.log('Prescription saved');
-      } else {
-        console.error('Failed to save prescription');
-      }
+      })
+      console.log('Prescription saved');
     } catch (error) {
       console.error('Error saving prescription:', error);
     }
