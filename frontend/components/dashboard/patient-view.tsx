@@ -26,93 +26,132 @@ export const PatientView: React.FC<Props> = ({
   const [active, setActive] = useState<"records" | "recordings" | "chat" | "prescription" | "appointments">("records");
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Patient: {patientName}</h2>
-        <div className="flex items-center gap-2">
+    <div className="min-h-screen w-full bg-gray-50 dark:bg-gray-900">
+      {/* Mobile-first header */}
+      <div className="sticky top-0 z-10 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 md:px-6 md:py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {onBack && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onBack}
+                className="md:hidden"
+              >
+                ← Back
+              </Button>
+            )}
+            <h1 className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white truncate">
+              {patientName}
+            </h1>
+          </div>
           {onBack && (
-            <Button variant="ghost" size="sm" onClick={onBack}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onBack}
+              className="hidden md:flex"
+            >
               Back to Patients
             </Button>
           )}
         </div>
       </div>
 
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => setActive("records")}
-            className={cn(
-              "px-3 py-1 rounded-md text-sm font-medium",
-              active === "records"
-                ? "bg-blue-600 text-white"
-                : "bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-200"
-            )}
-          >
-            Records
-          </button>
-          <button
-            onClick={() => setActive("recordings")}
-            className={cn(
-              "px-3 py-1 rounded-md text-sm font-medium",
-              active === "recordings"
-                ? "bg-blue-600 text-white"
-                : "bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-200"
-            )}
-          >
-            Recordings
-          </button>
-          <button
-            onClick={() => setActive("chat")}
-            className={cn(
-              "px-3 py-1 rounded-md text-sm font-medium",
-              active === "chat"
-                ? "bg-blue-600 text-white"
-                : "bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-200"
-            )}
-          >
-            Chat
-          </button>
-          <button
-            onClick={() => setActive("prescription")}
-            className={cn(
-              "px-3 py-1 rounded-md text-sm font-medium",
-              active === "prescription"
-                ? "bg-blue-600 text-white"
-                : "bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-200"
-            )}
-          >
-            Prescription
-          </button>
-          <button
-            onClick={() => setActive("appointments")}
-            className={cn(
-              "px-3 py-1 rounded-md text-sm font-medium",
-              active === "appointments"
-                ? "bg-blue-600 text-white"
-                : "bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-200"
-            )}
-          >
-            Appointments
-          </button>
+      {/* Scrollable navigation tabs - centered */}
+      <div className="sticky top-[57px] md:top-[73px] z-10 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-2 md:px-6">
+        <div className="flex justify-center">
+          <div className="flex gap-1 md:gap-2 overflow-x-auto scrollbar-hide max-w-full">
+            <button
+              onClick={() => setActive("records")}
+              className={cn(
+                "px-3 py-2 md:px-4 md:py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors",
+                active === "records"
+                  ? "bg-blue-600 text-white shadow-sm"
+                  : "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+              )}
+            >
+              Records
+            </button>
+            <button
+              onClick={() => setActive("recordings")}
+              className={cn(
+                "px-3 py-2 md:px-4 md:py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors",
+                active === "recordings"
+                  ? "bg-blue-600 text-white shadow-sm"
+                  : "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+              )}
+            >
+              Recordings
+            </button>
+            <button
+              onClick={() => setActive("chat")}
+              className={cn(
+                "px-3 py-2 md:px-4 md:py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors",
+                active === "chat"
+                  ? "bg-blue-600 text-white shadow-sm"
+                  : "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+              )}
+            >
+              Chat
+            </button>
+            <button
+              onClick={() => setActive("prescription")}
+              className={cn(
+                "px-3 py-2 md:px-4 md:py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors",
+                active === "prescription"
+                  ? "bg-blue-600 text-white shadow-sm"
+                  : "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+              )}
+            >
+              Prescription
+            </button>
+            <button
+              onClick={() => setActive("appointments")}
+              className={cn(
+                "px-3 py-2 md:px-4 md:py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors",
+                active === "appointments"
+                  ? "bg-blue-600 text-white shadow-sm"
+                  : "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+              )}
+            >
+              Appointments
+            </button>
+          </div>
         </div>
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {active === "records" && <PatientRecords patientId={patientId} patientName={patientName} />}
-          {active === "recordings" && (
-            <PatientRecordings patientId={patientId} patientName={patientName} />
+      {/* Full page content */}
+      <div className="flex-1 w-full px-4 py-6 md:px-6 md:py-8 h-full">
+        <div className="max-w-7xl mx-auto">
+          {active === "records" && (
+            <div className="w-full">
+              <PatientRecords patientId={patientId} patientName={patientName} />
+            </div>
           )}
-          {active === "chat" && <PatientChat patientId={patientId} patientName={patientName} />}
+          {active === "recordings" && (
+            <div className="w-full">
+              <PatientRecordings patientId={patientId} patientName={patientName} />
+            </div>
+          )}
+          {active === "chat" && (
+            <div className="w-full h-full">
+              <PatientChat patientId={patientId} patientName={patientName} />
+            </div>
+          )}
           {active === "prescription" && (
-            <PrescriptionEditor
-              patientId={patientId}
-              patientName={patientName}
-              // PrescriptionEditor expects a required onSave; provide a no-op when not passed
-              onSave={onSavePrescription ?? (() => undefined)}
-            />
+            <div className="w-full">
+              <PrescriptionEditor
+                patientId={patientId}
+                patientName={patientName}
+                onSave={onSavePrescription ?? (() => undefined)}
+              />
+            </div>
           )}
           {active === "appointments" && (
-            <PatientAppointments patientId={patientId} patientName={patientName} />
+            <div className="w-full">
+              <PatientAppointments patientId={patientId} patientName={patientName} />
+            </div>
           )}
         </div>
       </div>

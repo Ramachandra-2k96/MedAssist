@@ -217,13 +217,15 @@ const DoctorDashboardContent = ({
             <DoctorAppointmentRequests />
           </div>
         ) : selectedPatient && selectedPatient.id && selectedPatient.id !== 'undefined' && selectedPatient.name ? (
-          <PatientView
-            patientId={selectedPatient.id}
-            patientName={selectedPatient.name}
-            onBack={() => onSelectPatient(null)}
-            onRecordingComplete={onRecordingComplete}
-            onSavePrescription={onSavePrescription}
-          />
+          <div className="h-full w-full">
+            <PatientView
+              patientId={selectedPatient.id}
+              patientName={selectedPatient.name}
+              onBack={() => onSelectPatient(null)}
+              onRecordingComplete={onRecordingComplete}
+              onSavePrescription={onSavePrescription}
+            />
+          </div>
         ) : null}
       </div>
     </div>

@@ -7,6 +7,8 @@ import { API_BASE_URL } from '@/lib/config'
 import { apiFetch } from '@/lib/api'
 import { useAudioRecorder } from '@/hooks/use-audio-recorder'
 import { Send, Mic, MicOff, Bot, User } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 interface Message {
   id: string
@@ -19,6 +21,7 @@ export function AIChat() {
   const [messages, setMessages] = useState<Message[]>([])
   const [text, setText] = useState('')
   const [loading, setLoading] = useState(false)
+  const [sessionId, setSessionId] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const onComplete = async (blob: Blob, transcript: string) => {
@@ -47,10 +50,17 @@ export function AIChat() {
     setText('')
     setLoading(true)
 
+    // Generate session ID if not present
+    let currentSessionId = sessionId
+    if (!currentSessionId) {
+      currentSessionId = crypto.randomUUID()
+      setSessionId(currentSessionId)
+    }
+
     try {
       const data = await apiFetch('/patient/ai-chat/', {
         method: 'POST',
-        body: JSON.stringify({ message: userMessage.text })
+        body: JSON.stringify({ message: userMessage.text, session_id: currentSessionId })
       })
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -127,7 +137,15 @@ export function AIChat() {
                   : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border'
               }`}
             >
-              <p className="text-sm sm:text-base leading-relaxed break-words">{message.text}</p>
+              {message.sender === 'ai' ? (
+                <div className="text-sm sm:text-base leading-relaxed break-words prose prose-sm max-w-none dark:prose-invert">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {message.text}
+                  </ReactMarkdown>
+                </div>
+              ) : (
+                <p className="text-sm sm:text-base leading-relaxed break-words">{message.text}</p>
+              )}
               <p className="text-xs opacity-70 mt-1">
                 {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </p>

@@ -23,6 +23,12 @@ from django.db.models import Q
 import os
 from datetime import datetime
 from django.utils import timezone
+from django.http import JsonResponse
+from .utils import send_sms  # assuming you saved the function in utils.py
+from agno.models.cerebras import CerebrasOpenAI
+from agno.agent import Agent
+from backend.settings import CEREBRUS_API_KEY
+
 
 class SignupView(APIView):
     permission_classes = [AllowAny]
@@ -518,26 +524,48 @@ class PatientDoctorsView(APIView):
         data = DoctorBasicSerializer(doctors, many=True).data
         return Response(data)
 
+from agno.db.sqlite import SqliteDb
+from agno.tools.memory import MemoryTools
+
+db = SqliteDb(db_file="agno.db")
+memory_tools = MemoryTools(
+    db=db,
+)
 
 class PatientAIChatView(APIView):
-    """Simple passthrough AI chat endpoint: echoes message + user id back in reply."""
     permission_classes = [IsAuthenticated]
-
+    
     def post(self, request):
-        # Only patients allowed to call this endpoint (frontend requirement)
         if not request.user.groups.filter(name='Patient').exists():
             return Response({'error': 'Only patients can access this'}, status=status.HTTP_403_FORBIDDEN)
-
-        user_id = request.data.get('user_id') or request.data.get('user')
-        message = request.data.get('message') or request.data.get('text')
+        
+        # Get or create consistent session_id for this user
+        session_id = request.data.get('session_id') or f"patient_{request.user.id}_session"
+        
+        agent = Agent(
+            model=CerebrasOpenAI(id="gpt-oss-120b", api_key=CEREBRUS_API_KEY),
+            markdown=True,
+            tools=[memory_tools],
+            enable_user_memories=True,
+            db=db,
+            add_memories_to_context=True,
+            add_history_to_context=True,  # This enables conversation memory
+            num_history_runs=5,  # Include last 5 conversation turns
+            session_id=session_id,  # Consistent session per user
+        )
+        
+        message = request.data.get('message')
         if not message:
             return Response({'error': 'message required'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Build a simple echo reply as requested: "<message> <user_id>"
-        uid = str(user_id or request.user.id)
-        reply = f"{message} {uid}"
-        return Response({'reply': reply, 'user_id': uid}, status=status.HTTP_200_OK)
-
+        # Use consistent user_id
+        run_response = agent.run(message, user_id=str(request.user.id))
+        
+        return Response({
+            'reply': run_response.content, 
+            'user_id': str(request.user.id),
+            'session_id': session_id
+        }, status=status.HTTP_200_OK)
 
 class PatientAppointmentsView(APIView):
     permission_classes = [IsAuthenticated]
@@ -787,9 +815,9 @@ class PatientMedicationLogsView(APIView):
         except (ValueError, Prescription.DoesNotExist):
             return Response({'error': 'Invalid log_id'}, status=status.HTTP_400_BAD_REQUEST)
 
-from django.http import JsonResponse
-from .utils import send_sms  # assuming you saved the function in utils.py
 
 def test_sms(request):
     sid = send_sms("Hello from Django!", "9362993823") 
     return JsonResponse({"status": "sent", "sid": sid})
+
+

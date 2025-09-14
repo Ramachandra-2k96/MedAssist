@@ -34,10 +34,18 @@ export function PatientList({ patients, onSelectPatient, onAddPatient }: Patient
     phone: "",
     email: ""
   })
+  const [currentPage, setCurrentPage] = useState(1)
+  const patientsPerPage = 4
 
   const filteredPatients = patients.filter(patient =>
     patient.name.toLowerCase().includes(searchTerm.toLowerCase())
   )
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredPatients.length / patientsPerPage)
+  const startIndex = (currentPage - 1) * patientsPerPage
+  const endIndex = startIndex + patientsPerPage
+  const currentPatients = filteredPatients.slice(startIndex, endIndex)
 
   const handleAddPatient = () => {
     if (onAddPatient) {
@@ -45,6 +53,10 @@ export function PatientList({ patients, onSelectPatient, onAddPatient }: Patient
     }
     setIsAddDialogOpen(false)
     setNewPatient({ name: "", phone: "", email: "" })
+  }
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
   }
 
   return (
@@ -115,7 +127,7 @@ export function PatientList({ patients, onSelectPatient, onAddPatient }: Patient
             />
           </div>
           <div className="space-y-4">
-            {filteredPatients.map((patient) => (
+            {currentPatients.map((patient) => (
               <div key={patient.id} className="flex items-center justify-between p-4 border rounded-lg">
                 <div className="flex items-center gap-3">
                   <Avatar>
@@ -138,7 +150,53 @@ export function PatientList({ patients, onSelectPatient, onAddPatient }: Patient
                 </div>
               </div>
             ))}
+            
+            {filteredPatients.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                No patients found
+              </div>
+            )}
           </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-4 border-t">
+              <div className="text-sm text-muted-foreground">
+                Showing {startIndex + 1}-{Math.min(endIndex, filteredPatients.length)} of {filteredPatients.length} patients
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                >
+                  Previous
+                </Button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <Button
+                      key={page}
+                      variant={currentPage === page ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => handlePageChange(page)}
+                      className="w-8 h-8 p-0"
+                    >
+                      {page}
+                    </Button>
+                  ))}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

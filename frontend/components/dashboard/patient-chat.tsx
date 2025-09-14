@@ -4,7 +4,6 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { API_BASE_URL } from "@/lib/config"
 import { apiFetch } from "@/lib/api"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
@@ -61,7 +60,7 @@ export function PatientChat({ patientId, patientName }: PatientChatProps) {
   }
 
   return (
-    <Card>
+    <Card className="w-full h-full">
       <CardHeader>
         <CardTitle>Chat with {patientName}</CardTitle>
       </CardHeader>

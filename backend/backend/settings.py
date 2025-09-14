@@ -193,6 +193,8 @@ TWILIO_FROM_NUMBER = env("TWILIO_FROM_NUMBER")
 AWS_ACCESS_KEY_ID = env("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = env("AWS_SECRET_ACCESS_KEY")
 
+CEREBRUS_API_KEY = env("CEREBRUS_API_KEY")
+
 CRONJOBS = [
     ('*/20 * * * *', 'accounts.cron.send_medication_reminders'),
 ]
