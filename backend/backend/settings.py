@@ -194,6 +194,6 @@ AWS_ACCESS_KEY_ID = env("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = env("AWS_SECRET_ACCESS_KEY")
 
 CRONJOBS = [
-    ('*/1 * * * *', 'accounts.cron.send_medication_reminders'),
+    ('*/20 * * * *', 'accounts.cron.send_medication_reminders'),
 ]
 AWS_REGION = env("AWS_REGION")
