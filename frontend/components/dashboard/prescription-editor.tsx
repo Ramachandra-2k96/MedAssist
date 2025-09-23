@@ -233,6 +233,20 @@ export function PrescriptionEditor({ patientName, patientId, onSave }: Prescript
     }
   }
 
+  const handleSendViaSMS = async () => {
+    try {
+      const res = await apiFetch(`/doctor/patients/${patientId}/prescriptions/send-sms/`, {
+        method: 'POST'
+      })
+      // apiFetch should throw for non-2xx but handle gracefully
+      console.log('Send SMS response', res)
+      alert('SMS sent to patient (if phone number exists).')
+    } catch (err) {
+      console.error('Error sending SMS:', err)
+      alert('Failed to send SMS. Check console for details.')
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -254,6 +268,10 @@ export function PrescriptionEditor({ patientName, patientId, onSave }: Prescript
                 <Button onClick={() => handlePrintPrescriptions()} variant="ghost" size="sm">
                   <FileText className="h-4 w-4 mr-2" />
                   Download / Print
+                </Button>
+                <Button onClick={() => handleSendViaSMS()} variant="outline" size="sm">
+                  <FileText className="h-4 w-4 mr-2" />
+                  Send via SMS
                 </Button>
                 <Button onClick={() => setShowAddForm(!showAddForm)} variant="outline" size="sm">
                   <Plus className="h-4 w-4 mr-2" />
@@ -473,3 +491,5 @@ export function PrescriptionEditor({ patientName, patientId, onSave }: Prescript
     </Card>
   )
 }
+
+ 

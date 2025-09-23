@@ -18,6 +18,7 @@ from .views import (
     DoctorAppointmentsView,
     PatientMedicationLogsView,
     PatientAIChatView,
+    DoctorSendPrescriptionsSMSView,
 )
 from .views import LogoutView, test_sms
 
@@ -42,6 +43,7 @@ urlpatterns = [
     path('doctor/appointments/', DoctorAppointmentsView.as_view(), name='doctor_appointments'),
     path('doctor/appointments/<int:appointment_id>/', DoctorAppointmentsView.as_view(), name='doctor_appointment_detail'),
     path('patient/medication-logs/', PatientMedicationLogsView.as_view(), name='patient_medication_logs'),
+    path('doctor/patients/<int:patient_id>/prescriptions/send-sms/', DoctorSendPrescriptionsSMSView.as_view(), name='doctor_send_prescriptions_sms'),
     path('logout/', LogoutView.as_view(), name='logout'),
     path('test-sms/', test_sms, name='test_sms'),  # New endpoint for testing SMS
 ]

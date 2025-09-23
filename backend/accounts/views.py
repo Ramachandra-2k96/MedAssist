@@ -298,6 +298,65 @@ class PatientPrescriptionsView(APIView):
         return Response({'message': 'Prescription deleted'}, status=status.HTTP_204_NO_CONTENT)
 
 
+class DoctorSendPrescriptionsSMSView(APIView):
+    """Allow a doctor to send all prescriptions they set for a given patient as an SMS message."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, patient_id):
+        # Only doctors may call this
+        if not request.user.groups.filter(name='Doctor').exists():
+            return Response({'error': 'Only doctors can access this'}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            patient = User.objects.get(id=patient_id, groups__name='Patient')
+            DoctorPatient.objects.get(doctor=request.user, patient=patient)
+        except (User.DoesNotExist, DoctorPatient.DoesNotExist):
+            return Response({'error': 'Patient not found or not associated'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Fetch prescriptions authored by this doctor for the patient
+        prescriptions = Prescription.objects.filter(doctor=request.user, patient=patient).order_by('-created_at')
+        if not prescriptions.exists():
+            return Response({'error': 'No prescriptions found for this patient by you'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Build a human-readable message
+        lines = []
+        doctor_name = request.user.profile.name or request.user.username
+        header = f"Dr. {doctor_name} - Your prescriptions:\n"
+        lines.append(header)
+        for p in prescriptions:
+            for m in p.medicines:
+                try:
+                    name = m.get('name', '')
+                    dosage = m.get('dosage', '')
+                    freq = m.get('frequency', '')
+                    duration = m.get('duration', '')
+                    lines.append(f"- {name} {dosage} | {freq} | {duration}")
+                except Exception:
+                    continue
+
+        # Optional notes (append latest notes)
+        latest_notes = '\n'.join([p.notes for p in prescriptions if p.notes])
+        if latest_notes:
+            lines.append('\nNotes:')
+            # Truncate notes to keep SMS length reasonable
+            notes_text = latest_notes
+            if len(notes_text) > 500:
+                notes_text = notes_text[:497] + '...'
+            lines.append(notes_text)
+
+        message_text = '\n'.join(lines)
+
+        # Send SMS using existing utility
+        try:
+            patient_phone = patient.profile.phone_number
+            if not patient_phone:
+                return Response({'error': 'Patient has no phone number'}, status=status.HTTP_400_BAD_REQUEST)
+            sid = send_sms(message_text, patient_phone)
+            return Response({'message': 'Sent', 'sid': sid}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': f'Failed to send SMS: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 class DoctorProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
