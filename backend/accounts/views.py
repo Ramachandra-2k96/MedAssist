@@ -1,10 +1,15 @@
-from django.shortcuts import render
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.models import User, Group
+from django.db.models import Q
+from django.utils import timezone
+from django.http import JsonResponse
+from datetime import datetime, timedelta
+import logging
+
 from .serializers import (
     SignupSerializer,
     LoginSerializer,
@@ -18,16 +23,22 @@ from .serializers import (
     DoctorBasicSerializer,
     AppointmentSerializer,
 )
-from .models import DoctorPatient, Record, AudioRecording, ChatMessage, Prescription, Profile, Appointment, TakenDose
-from django.db.models import Q
-import os
-from datetime import datetime
-from django.utils import timezone
-from django.http import JsonResponse
-from .utils import send_sms  # assuming you saved the function in utils.py
+from .models import (
+    DoctorPatient, 
+    Record, 
+    AudioRecording, 
+    ChatMessage, 
+    Prescription, 
+    Profile, 
+    Appointment, 
+    TakenDose
+)
+from .utils import send_sms
 from agno.models.cerebras import CerebrasOpenAI
 from agno.agent import Agent
 from backend.settings import CEREBRUS_API_KEY
+
+logger = logging.getLogger(__name__)
 
 
 class SignupView(APIView):
@@ -126,6 +137,8 @@ class PatientRecordsView(APIView):
         if not record_id:
             return Response({'error': 'Record ID required'}, status=status.HTTP_400_BAD_REQUEST)
         try:
+            from .gcp_utils import delete_file, extract_blob_name_from_url
+            
             patient = User.objects.get(id=patient_id, groups__name='Patient')
             DoctorPatient.objects.get(doctor=request.user, patient=patient)
             record = Record.objects.get(id=record_id, doctor=request.user, patient=patient)
@@ -133,11 +146,11 @@ class PatientRecordsView(APIView):
             if record.uploaded_by != 'doctor':
                 return Response({'error': 'Only the uploader can delete this record'}, status=status.HTTP_403_FORBIDDEN)
             
-            # Delete the file if it exists
+            # Delete the file from GCS if it exists
             if record.file:
-                file_path = record.file.path
-                if os.path.exists(file_path):
-                    os.remove(file_path)
+                blob_name = extract_blob_name_from_url(record.file)
+                if blob_name:
+                    delete_file(blob_name)
             
             record.delete()
             return Response({'message': 'Record deleted'}, status=status.HTTP_204_NO_CONTENT)
@@ -178,15 +191,14 @@ class PatientAudioRecordingsView(APIView):
             recording = serializer.save()
             # Send SMS with transcription to patient
             try:
-                from .utils import send_sms
                 patient_phone = patient.profile.phone_number
                 if patient_phone and recording.transcription:
                     doctor_name = request.user.profile.name or request.user.username
                     message = f"Dr. {doctor_name}: {recording.transcription}"
                     send_sms(message, patient_phone)
+                    logger.info(f"SMS sent to patient {patient.id} for recording {recording.id}")
             except Exception as e:
-                # Log error but don't fail the request
-                print(f"SMS failed: {e}")
+                logger.error(f"Failed to send SMS to patient {patient.id}: {str(e)}")
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -197,6 +209,8 @@ class PatientAudioRecordingsView(APIView):
         if not recording_id:
             return Response({'error': 'Recording ID required'}, status=status.HTTP_400_BAD_REQUEST)
         try:
+            from .gcp_utils import delete_file, extract_blob_name_from_url
+            
             patient = User.objects.get(id=patient_id, groups__name='Patient')
             DoctorPatient.objects.get(doctor=request.user, patient=patient)
             recording = AudioRecording.objects.get(id=recording_id, doctor=request.user, patient=patient)
@@ -204,11 +218,11 @@ class PatientAudioRecordingsView(APIView):
             if recording.uploaded_by != 'doctor':
                 return Response({'error': 'Only the uploader can delete this recording'}, status=status.HTTP_403_FORBIDDEN)
             
-            # Delete the audio file if it exists
+            # Delete the audio file from GCS if it exists
             if recording.audio_file:
-                file_path = recording.audio_file.path
-                if os.path.exists(file_path):
-                    os.remove(file_path)
+                blob_name = extract_blob_name_from_url(recording.audio_file)
+                if blob_name:
+                    delete_file(blob_name)
             
             recording.delete()
             return Response({'message': 'Recording deleted'}, status=status.HTTP_204_NO_CONTENT)
@@ -325,14 +339,12 @@ class DoctorSendPrescriptionsSMSView(APIView):
         lines.append(header)
         for p in prescriptions:
             for m in p.medicines:
-                try:
-                    name = m.get('name', '')
-                    dosage = m.get('dosage', '')
-                    freq = m.get('frequency', '')
-                    duration = m.get('duration', '')
+                name = m.get('name', '')
+                dosage = m.get('dosage', '')
+                freq = m.get('frequency', '')
+                duration = m.get('duration', '')
+                if name:  # Only add if medicine has a name
                     lines.append(f"- {name} {dosage} | {freq} | {duration}")
-                except Exception:
-                    continue
 
         # Optional notes (append latest notes)
         latest_notes = '\n'.join([p.notes for p in prescriptions if p.notes])
@@ -352,8 +364,10 @@ class DoctorSendPrescriptionsSMSView(APIView):
             if not patient_phone:
                 return Response({'error': 'Patient has no phone number'}, status=status.HTTP_400_BAD_REQUEST)
             sid = send_sms(message_text, patient_phone)
+            logger.info(f"Prescription SMS sent to patient {patient.id}, SID: {sid}")
             return Response({'message': 'Sent', 'sid': sid}, status=status.HTTP_200_OK)
         except Exception as e:
+            logger.error(f"Failed to send prescription SMS to patient {patient.id}: {str(e)}")
             return Response({'error': f'Failed to send SMS: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -443,14 +457,16 @@ class PatientRecordsManageView(APIView):
         if not record_id:
             return Response({'error': 'record_id required'}, status=status.HTTP_400_BAD_REQUEST)
         try:
+            from .gcp_utils import delete_file, extract_blob_name_from_url
+            
             record = Record.objects.get(id=record_id, patient=request.user)
             if record.uploaded_by != 'patient':
                 return Response({'error': 'Cannot delete doctor uploaded record'}, status=status.HTTP_403_FORBIDDEN)
-            # remove file
+            # Delete file from GCS
             if record.file:
-                file_path = record.file.path
-                if os.path.exists(file_path):
-                    os.remove(file_path)
+                blob_name = extract_blob_name_from_url(record.file)
+                if blob_name:
+                    delete_file(blob_name)
             record.delete()
             return Response({'message': 'Deleted'}, status=status.HTTP_204_NO_CONTENT)
         except Record.DoesNotExist:
@@ -494,13 +510,15 @@ class PatientAudioManageView(APIView):
         if not rec_id:
             return Response({'error': 'recording_id required'}, status=status.HTTP_400_BAD_REQUEST)
         try:
+            from .gcp_utils import delete_file, extract_blob_name_from_url
+            
             rec = AudioRecording.objects.get(id=rec_id, patient=request.user)
             if rec.uploaded_by != 'patient':
                 return Response({'error': 'Cannot delete doctor uploaded recording'}, status=status.HTTP_403_FORBIDDEN)
             if rec.audio_file:
-                fp = rec.audio_file.path
-                if os.path.exists(fp):
-                    os.remove(fp)
+                blob_name = extract_blob_name_from_url(rec.audio_file)
+                if blob_name:
+                    delete_file(blob_name)
             rec.delete()
             return Response({'message': 'Deleted'}, status=status.HTTP_204_NO_CONTENT)
         except AudioRecording.DoesNotExist:
@@ -676,14 +694,13 @@ class PatientAppointmentsView(APIView):
             appointment = serializer.save()
             # Send SMS notification to doctor
             try:
-                from .utils import send_sms
                 doctor_phone = doctor.profile.phone_number
                 if doctor_phone:
                     message = f"New appointment request from {request.user.profile.name or request.user.username}"
                     send_sms(message, doctor_phone)
+                    logger.info(f"Appointment notification sent to doctor {doctor.id}")
             except Exception as e:
-                # Log error but don't fail the request
-                print(f"SMS failed: {e}")
+                logger.error(f"Failed to send appointment SMS to doctor {doctor.id}: {str(e)}")
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -725,13 +742,13 @@ class DoctorAppointmentsView(APIView):
             appointment = serializer.save()
             # Send SMS notification to patient
             try:
-                from .utils import send_sms
                 patient_phone = appointment.patient.profile.phone_number
                 if patient_phone:
                     message = f"Dr. {request.user.profile.name or request.user.username} has scheduled an appointment for you on {appointment.booked_date} at {appointment.booked_time}."
                     send_sms(message, patient_phone)
+                    logger.info(f"Appointment SMS sent to patient {appointment.patient.id}")
             except Exception as e:
-                print(f"SMS failed: {e}")
+                logger.error(f"Failed to send appointment SMS to patient {appointment.patient.id}: {str(e)}")
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -749,7 +766,6 @@ class DoctorAppointmentsView(APIView):
             # Send SMS notification to patient if status changed to accepted or booked
             if 'status' in request.data and request.data['status'] in ['accepted', 'booked']:
                 try:
-                    from .utils import send_sms
                     patient_phone = appointment.patient.profile.phone_number
                     if patient_phone:
                         if request.data['status'] == 'accepted':
@@ -757,8 +773,9 @@ class DoctorAppointmentsView(APIView):
                         else:
                             message = f"Your appointment with Dr. {request.user.profile.name or request.user.username} has been booked for {appointment.booked_date} at {appointment.booked_time}."
                         send_sms(message, patient_phone)
+                        logger.info(f"Appointment update SMS sent to patient {appointment.patient.id}")
                 except Exception as e:
-                    print(f"SMS failed: {e}")
+                    logger.error(f"Failed to send appointment update SMS to patient {appointment.patient.id}: {str(e)}")
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

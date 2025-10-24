@@ -10,7 +10,6 @@ logger = logging.getLogger('accounts.cron')
 def send_medication_reminders():
     now = timezone.now()
     grace_period = now - timedelta(minutes=10)  # 10 min grace
-    logger.info("Cron job started")
     prescriptions = Prescription.objects.all()
     for prescription in prescriptions:
         # skip expired

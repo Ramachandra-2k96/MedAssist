@@ -173,17 +173,23 @@ LOGGING = {
 
 STATIC_URL = "static/"
 
-# Media files
+# Media files (kept for backward compatibility, but files are stored in GCP)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# Google Cloud Storage / GCP settings (used by the custom uploader)
-GCP_PROJECT = env('GCP_PROJECT', default='')
-GCP_BUCKET_NAME = env('GCP_BUCKET_NAME', default='')
-# Optional API endpoint for local emulator (e.g. http://localhost:4443)
-GCP_API_ENDPOINT = env('GCP_API_ENDPOINT', default='')
-# Optional base URL for hosted objects (if using a proxy or emulator that exposes a different URL)
-GCP_BASE_URL = env('GCP_BASE_URL', default='')
+# Google Cloud Storage / GCP settings
+GCP_SERVICE_ACCOUNT_FILE = env('GCP_SERVICE_ACCOUNT_FILE', default='')
+GCP_BUCKET_NAME = env('GCP_BUCKET_NAME', default='medassist-bucket')
+
+# Initialize GCP Storage on startup
+if GCP_SERVICE_ACCOUNT_FILE:
+    try:
+        from accounts.gcp_utils import init_bucket
+        init_bucket()
+        print("✓ GCP Storage initialized successfully")
+    except Exception as e:
+        print(f"⚠ Warning: GCP Storage initialization failed: {e}")
+        print("  File uploads will fail until GCP is properly configured.")
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

@@ -7,7 +7,8 @@ from datetime import datetime, timedelta
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     name = models.CharField(max_length=100, blank=True)
-    photo = models.ImageField(upload_to='profiles/', blank=True, null=True)
+    # Store GCS URL instead of local file path
+    photo = models.URLField(max_length=500, blank=True, null=True)
     phone_number = models.CharField(max_length=15, blank=True)
 
     def __str__(self):
@@ -35,7 +36,8 @@ class Record(models.Model):
     patient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='patient_records', limit_choices_to={'groups__name': 'Patient'})
     type = models.CharField(max_length=100, default='General')
     title = models.CharField(max_length=200, default='Record')
-    file = models.FileField(upload_to='records/', blank=True, null=True)
+    # Store GCS URL instead of local file path
+    file = models.URLField(max_length=500, blank=True, null=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
     uploaded_by = models.CharField(max_length=10, default='doctor')
 
@@ -46,7 +48,8 @@ class AudioRecording(models.Model):
     doctor = models.ForeignKey(User, on_delete=models.CASCADE, related_name='doctor_audio_recordings', limit_choices_to={'groups__name': 'Doctor'})
     patient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='patient_audio_recordings', limit_choices_to={'groups__name': 'Patient'})
     title = models.CharField(max_length=200, default='Recording')
-    audio_file = models.FileField(upload_to='audio/')
+    # Store GCS URL instead of local file path
+    audio_file = models.URLField(max_length=500)
     transcription = models.TextField(blank=True)
     language = models.CharField(max_length=10, default='en')
     recorded_at = models.DateTimeField(auto_now_add=True)
