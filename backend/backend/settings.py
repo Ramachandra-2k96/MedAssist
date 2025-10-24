@@ -15,6 +15,13 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+import environ
+import os
+
+# Initialise environment variables early so we can use them in DATABASES and other settings
+env = environ.Env()
+environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -79,12 +86,34 @@ WSGI_APPLICATION = "backend.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+# Prefer DATABASE_URL (12-factor style). If not provided, fall back to explicit POSTGRES_* envs; otherwise use SQLite.
+DATABASE_URL = env('DATABASE_URL', default=None)
+if DATABASE_URL:
+    # django-environ can parse DATABASE_URL with env.db()
+    DATABASES = {
+        'default': env.db()
     }
-}
+else:
+    # fallback to explicit POSTGRES_DB vars if provided
+    POSTGRES_DB = env('POSTGRES_DB', default='')
+    if POSTGRES_DB:
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.postgresql_psycopg2',
+                'NAME': POSTGRES_DB,
+                'USER': env('POSTGRES_USER', default='postgres'),
+                'PASSWORD': env('POSTGRES_PASSWORD', default=''),
+                'HOST': env('POSTGRES_HOST', default='localhost'),
+                'PORT': env('POSTGRES_PORT', default='5432'),
+            }
+        }
+    else:
+        DATABASES = {
+            "default": {
+                "ENGINE": "django.db.backends.sqlite3",
+                "NAME": BASE_DIR / "db.sqlite3",
+            }
+        }
 
 
 # Password validation
@@ -148,6 +177,14 @@ STATIC_URL = "static/"
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# Google Cloud Storage / GCP settings (used by the custom uploader)
+GCP_PROJECT = env('GCP_PROJECT', default='')
+GCP_BUCKET_NAME = env('GCP_BUCKET_NAME', default='')
+# Optional API endpoint for local emulator (e.g. http://localhost:4443)
+GCP_API_ENDPOINT = env('GCP_API_ENDPOINT', default='')
+# Optional base URL for hosted objects (if using a proxy or emulator that exposes a different URL)
+GCP_BASE_URL = env('GCP_BASE_URL', default='')
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
@@ -178,12 +215,6 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
 ]
 
-import environ
-import os
-
-# Initialise environment variables
-env = environ.Env()
-environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 TWILIO_ACCOUNT_SID = env("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = env("TWILIO_AUTH_TOKEN")
