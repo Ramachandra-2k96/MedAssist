@@ -249,22 +249,3 @@ for record in Record.objects.all():
             record.file = new_url
             record.save()
 ```
-
-## Development vs Production
-
-### Development (Using Local Emulator)
-Not recommended. Use actual GCP with service account for both dev and prod.
-
-### Production
-Same setup as development - just ensure:
-- Service account JSON is securely stored on server
-- Environment variables are set correctly
-- `.env` file is not in version control
-
-## Support
-
-For issues:
-1. Check Django logs for detailed error messages
-2. Verify GCP Console shows bucket exists
-3. Test IAM policy by accessing a URL directly
-4. Ensure service account has **Storage Admin** role

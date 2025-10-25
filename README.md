@@ -308,7 +308,14 @@ AWS_REGION=us-east-1
 # Cerebras API (for AI features)
 CEREBRUS_API_KEY=your-cerebras-api-key
 CEREBRUS_API_URL=https://api.cerebrus.com
+
+GCP_SERVICE_ACCOUNT_FILE=path to .json file
+GCP_BUCKET_NAME=medassist-bucket  (must be unique)
 ```
+#### Read thsi for GCP setup
+
+[GCP_Setup](backend/GCP_SETUP.md)
+
 
 ### Frontend (.env file in frontend/ directory)
 
@@ -339,3 +346,4 @@ For production deployment, ensure to:
 - Use environment-specific environment variables
 - Configure proper logging and monitoring</content>
 <parameter name="filePath">/home/ramachandra/Documents/medassist/README.md
+
