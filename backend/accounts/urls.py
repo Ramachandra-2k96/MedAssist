@@ -19,8 +19,11 @@ from .views import (
     PatientMedicationLogsView,
     PatientAIChatView,
     DoctorSendPrescriptionsSMSView,
+    RequestPasswordResetView,
+    VerifyOTPView,
+    ResetPasswordView,
 )
-from .views import LogoutView, test_sms
+from .views import LogoutView
 
 urlpatterns = [
     path('signup/', SignupView.as_view(), name='signup'),
@@ -45,5 +48,8 @@ urlpatterns = [
     path('patient/medication-logs/', PatientMedicationLogsView.as_view(), name='patient_medication_logs'),
     path('doctor/patients/<int:patient_id>/prescriptions/send-sms/', DoctorSendPrescriptionsSMSView.as_view(), name='doctor_send_prescriptions_sms'),
     path('logout/', LogoutView.as_view(), name='logout'),
-    path('test-sms/', test_sms, name='test_sms'),  # New endpoint for testing SMS
+    # Password reset endpoints
+    path('password-reset/request/', RequestPasswordResetView.as_view(), name='password_reset_request'),
+    path('password-reset/verify/', VerifyOTPView.as_view(), name='password_reset_verify'),
+    path('password-reset/confirm/', ResetPasswordView.as_view(), name='password_reset_confirm'),
 ]

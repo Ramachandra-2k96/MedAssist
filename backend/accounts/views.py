@@ -982,8 +982,159 @@ class PatientMedicationLogsView(APIView):
             return Response({'error': 'Invalid log_id'}, status=status.HTTP_400_BAD_REQUEST)
 
 
-def test_sms(request):
-    sid = send_sms("Hello from Django!", "9362993823") 
-    return JsonResponse({"status": "sent", "sid": sid})
+class RequestPasswordResetView(APIView):
+    """Step 1: Request password reset - sends OTP to email"""
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        from .models import PasswordResetOTP
+        from .utils import generate_otp, send_password_reset_email
+        
+        email = request.data.get('email', '').strip().lower()
+        
+        if not email:
+            return Response({'error': 'Email is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if user exists
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            # Return proper error if user doesn't exist
+            return Response({
+                'error': 'No account found with this email address. Please check and try again.'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Generate OTP
+        otp = generate_otp()
+        
+        # Delete any existing unused OTPs for this email
+        PasswordResetOTP.objects.filter(email=email, is_used=False).delete()
+        
+        # Create new OTP record with 10 minute expiry
+        expires_at = timezone.now() + timedelta(minutes=10)
+        PasswordResetOTP.objects.create(
+            email=email,
+            otp=otp,
+            expires_at=expires_at
+        )
+        
+        # Send email
+        email_sent = send_password_reset_email(email, otp)
+        
+        if not email_sent:
+            return Response({
+                'error': 'Failed to send email. Please try again later.'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        return Response({
+            'message': 'OTP sent to your email',
+            'email': email
+        }, status=status.HTTP_200_OK)
+
+
+class VerifyOTPView(APIView):
+    """Step 2: Verify OTP"""
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        from .models import PasswordResetOTP
+        
+        email = request.data.get('email', '').strip().lower()
+        otp = request.data.get('otp', '').strip()
+        
+        if not email or not otp:
+            return Response({
+                'error': 'Email and OTP are required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            otp_record = PasswordResetOTP.objects.filter(
+                email=email,
+                otp=otp,
+                is_used=False
+            ).latest('created_at')
+            
+            # Check if OTP is expired
+            if otp_record.is_expired():
+                return Response({
+                    'error': 'OTP has expired. Please request a new one.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Mark as verified
+            otp_record.is_verified = True
+            otp_record.save()
+            
+            return Response({
+                'message': 'OTP verified successfully',
+                'email': email
+            }, status=status.HTTP_200_OK)
+            
+        except PasswordResetOTP.DoesNotExist:
+            return Response({
+                'error': 'Invalid OTP'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ResetPasswordView(APIView):
+    """Step 3: Reset password with verified OTP"""
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        from .models import PasswordResetOTP
+        
+        email = request.data.get('email', '').strip().lower()
+        otp = request.data.get('otp', '').strip()
+        new_password = request.data.get('new_password', '')
+        
+        if not email or not otp or not new_password:
+            return Response({
+                'error': 'Email, OTP, and new password are required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if len(new_password) < 8:
+            return Response({
+                'error': 'Password must be at least 8 characters long'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Find verified OTP
+            otp_record = PasswordResetOTP.objects.filter(
+                email=email,
+                otp=otp,
+                is_verified=True,
+                is_used=False
+            ).latest('created_at')
+            
+            # Check if OTP is expired
+            if otp_record.is_expired():
+                return Response({
+                    'error': 'OTP has expired. Please request a new one.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Get user and update password
+            try:
+                user = User.objects.get(email=email)
+                user.set_password(new_password)
+                user.save()
+                
+                # Mark OTP as used
+                otp_record.is_used = True
+                otp_record.save()
+                
+                return Response({
+                    'message': 'Password reset successfully'
+                }, status=status.HTTP_200_OK)
+                
+            except User.DoesNotExist:
+                return Response({
+                    'error': 'User not found'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+        except PasswordResetOTP.DoesNotExist:
+            return Response({
+                'error': 'Invalid or unverified OTP'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+
 
 

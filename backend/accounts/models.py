@@ -128,6 +128,25 @@ class Appointment(models.Model):
     def __str__(self):
         return f"Appointment: {self.patient.username} with {self.doctor.username} - {self.status}"
 
+class PasswordResetOTP(models.Model):
+    """Store OTP for password reset functionality"""
+    email = models.EmailField()
+    otp = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    is_verified = models.BooleanField(default=False)
+    is_used = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"OTP for {self.email} - {'Verified' if self.is_verified else 'Pending'}"
+
+    def is_expired(self):
+        from django.utils import timezone
+        return timezone.now() > self.expires_at
+
+    class Meta:
+        ordering = ['-created_at']
+
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
     if created:

@@ -146,6 +146,7 @@ USE_I18N = True
 
 USE_TZ = True
 
+os.makedirs(BASE_DIR / 'logs', exist_ok=True)
 
 # Logging
 LOGGING = {
@@ -230,6 +231,9 @@ TWILIO_FROM_NUMBER = env("TWILIO_FROM_NUMBER",default='')
 AWS_ACCESS_KEY_ID = env("AWS_ACCESS_KEY_ID",default='')
 AWS_SECRET_ACCESS_KEY = env("AWS_SECRET_ACCESS_KEY",default='')
 AWS_REGION = env("AWS_REGION",default='')
+
+BREVO_API_KEY = env("Brevo_API_Key",default='')
+BREVO_API_EMAIL = env("Brevo_API_Email",default='')
 
 CEREBRUS_API_KEY = env("CEREBRUS_API_KEY")
 
