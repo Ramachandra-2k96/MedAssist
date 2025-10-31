@@ -363,6 +363,9 @@ CEREBRUS_API_KEY=your-cerebras-api-key
 # GCP Cloud Storage (Required for file uploads)
 GCP_SERVICE_ACCOUNT_FILE=/absolute/path/to/backend/your-service-account.json
 GCP_BUCKET_NAME=your-unique-bucket-name
+
+Brevo_API_Key=xkeysib-20a05ffHFWjy94Tln82THsX
+Brevo_API_Email=ramachandraudupa2004@gmail.com
 ```
 
 #### Optional Variables
