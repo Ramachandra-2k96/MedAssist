@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Calendar, Clock, CheckCircle, XCircle, AlertCircle, Plus } from "lucide-react"
 import { apiFetch } from "@/lib/api"
-import { toast } from "@/hooks/use-toast"
+import { useToast } from "@/components/ui/use-toast"
 
 interface Appointment {
   id: number
@@ -34,6 +34,7 @@ interface PatientAppointmentsProps {
 }
 
 export function PatientAppointments({ patientId, patientName }: PatientAppointmentsProps) {
+  const { toast } = useToast()
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateForm, setShowCreateForm] = useState(false)
@@ -102,11 +103,14 @@ export function PatientAppointments({ patientId, patientName }: PatientAppointme
       })
       setShowCreateForm(false)
       fetchAppointments()
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating appointment:", error)
+      console.log("Error detail:", error?.detail)
+      console.log("Error detail.error:", error?.detail?.error)
+      const errorMessage = error?.detail?.error || error?.message || "Failed to create appointment"
       toast({
         title: "Error",
-        description: "Failed to create appointment",
+        description: errorMessage,
         variant: "destructive"
       })
     }
@@ -130,11 +134,12 @@ export function PatientAppointments({ patientId, patientName }: PatientAppointme
       })
 
       fetchAppointments()
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating appointment:", error)
+      const errorMessage = error?.detail?.error || error?.message || "Failed to update appointment"
       toast({
         title: "Error",
-        description: "Failed to update appointment",
+        description: errorMessage,
         variant: "destructive"
       })
     } finally {
@@ -195,6 +200,7 @@ export function PatientAppointments({ patientId, patientName }: PatientAppointme
                     <Input
                       id="booked_date"
                       type="date"
+                       min={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
                       value={formData.booked_date}
                       onChange={(e) => setFormData(prev => ({ ...prev, booked_date: e.target.value }))}
                       required
@@ -309,6 +315,7 @@ interface AppointmentBookingFormProps {
 }
 
 function AppointmentBookingForm({ appointment, onBook, updating }: AppointmentBookingFormProps) {
+  const { toast } = useToast()
   const [bookedDate, setBookedDate] = useState("")
   const [bookedTime, setBookedTime] = useState("")
 

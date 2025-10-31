@@ -159,20 +159,6 @@ class PatientRecordsView(APIView):
         except Exception as e:
             return Response({'error': f'Error deleting record: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-from pydantic import BaseModel, Field
-from typing import List
-
-class Medication(BaseModel):
-    name: str
-    dosage: str
-    frequency: str
-    duration: str
-    emoji: str = "💊"
-    color: str = "#FF6B6B"
-
-class MedicationList(BaseModel):
-    medications: List[Medication]
-    
 class PatientAudioRecordingsView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -205,33 +191,6 @@ class PatientAudioRecordingsView(APIView):
             recording = serializer.save()
             # Send SMS with transcription to patient
             try:
-                agent = Agent(
-                    model=CerebrasOpenAI(id="gpt-oss-120b", api_key=CEREBRUS_API_KEY),
-                    output_schema=MedicationList,  # This enforces JSON structure
-                    instructions="""
-                    You are a medical transcription analyzer. Extract medication information from doctor-patient conversation transcripts.
-                    
-                    For each medication mentioned:
-                    - Extract name, dosage, frequency, duration
-                    - If information is missing, infer from symptoms/context
-                    - Assign appropriate emoji and color
-                    - Handle spelling errors in transcription
-                    - NEVER skip any field - fill all fields for every medication
-                    - you might see the spelling mistake or miswritten things,you need to correct it and fill all fields.
-                    - once you see the full context you will get to know what medication is suitable for the patient.Use your intuation only when the transcription is not clear
-                    Return ALL medications found in the conversation.
-                    """
-                )
-                run_response = agent.run(recording.transcription, user_id=str(request.user.id))
-                print(run_response.content)
-                medicines = run_response.content.medications
-
-                from accounts.management.commands import seed_prescriptions
-                seed_prescriptions.assign_medication(
-                    patient_id=patient.id,
-                    doctor_id=request.user.id,
-                    medicines_list=[m.dict() if hasattr(m, "dict") else m for m in medicines],
-                )
                 patient_phone = patient.profile.phone_number
                 if patient_phone and recording.transcription:
                     doctor_name = request.user.profile.name or request.user.username
@@ -774,6 +733,17 @@ class DoctorAppointmentsView(APIView):
         if not DoctorPatient.objects.filter(doctor=request.user, patient=patient).exists():
             return Response({'error': 'You can only create appointments for your patients'}, status=status.HTTP_403_FORBIDDEN)
         
+        # Check if booked_date and booked_time are provided and slot is available (15-min buffer)
+        booked_date = request.data.get('booked_date')
+        booked_time = request.data.get('booked_time')
+        if booked_date and booked_time:
+            if not self._is_slot_available(request.user, booked_date, booked_time):
+                logger.warning(f"Slot conflict for doctor {request.user.id}: {booked_date} {booked_time}")
+                return Response(
+                    {'error': 'This time slot is already booked. Please select a different date or time (appointments must be at least 15 minutes apart).'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
         # Create appointment data
         appointment_data = request.data.copy()
         appointment_data['doctor'] = request.user.id
@@ -801,6 +771,17 @@ class DoctorAppointmentsView(APIView):
         except Appointment.DoesNotExist:
             return Response({'error': 'Appointment not found'}, status=status.HTTP_404_NOT_FOUND)
         
+        # Check if booked_date and booked_time are being updated and slot is available (15-min buffer)
+        booked_date = request.data.get('booked_date')
+        booked_time = request.data.get('booked_time')
+        if booked_date and booked_time:
+            if not self._is_slot_available(request.user, booked_date, booked_time, exclude_appointment_id=appointment_id):
+                logger.warning(f"Slot conflict for doctor {request.user.id} updating appointment {appointment_id}: {booked_date} {booked_time}")
+                return Response(
+                    {'error': 'This time slot is already booked. Please select a different date or time (appointments must be at least 15 minutes apart).'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
         serializer = AppointmentSerializer(appointment, data=request.data, partial=True)
         if serializer.is_valid():
             updated_appointment = serializer.save()
@@ -819,6 +800,53 @@ class DoctorAppointmentsView(APIView):
                     logger.error(f"Failed to send appointment update SMS to patient {appointment.patient.id}: {str(e)}")
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def _is_slot_available(self, doctor, booked_date, booked_time, exclude_appointment_id=None):
+        """Check if a slot is available for the doctor (with 15-min buffer)."""
+        import datetime as dt_module
+        
+        # Parse the requested slot
+        try:
+            if isinstance(booked_date, dt_module.date):
+                date_obj = booked_date
+            else:
+                date_obj = datetime.strptime(booked_date, '%Y-%m-%d').date()
+            
+            if isinstance(booked_time, dt_module.time):
+                time_obj = booked_time
+            else:
+                time_str = str(booked_time)
+                if len(time_str.split(':')) == 3:
+                    time_obj = datetime.strptime(time_str, '%H:%M:%S').time()
+                else:
+                    time_obj = datetime.strptime(time_str, '%H:%M').time()
+            
+            requested_datetime = datetime.combine(date_obj, time_obj)
+        except Exception as e:
+            logger.error(f"Error parsing date/time: {e}")
+            return False
+        
+        # Get all booked appointments for this doctor on the same date
+        existing_appointments = Appointment.objects.filter(
+            doctor=doctor,
+            booked_date=booked_date,
+            status='booked'
+        )
+        
+        # Exclude current appointment if updating
+        if exclude_appointment_id:
+            existing_appointments = existing_appointments.exclude(id=exclude_appointment_id)
+        
+        # Check if any existing appointment conflicts (within 15 minutes)
+        buffer_minutes = 15
+        for appt in existing_appointments:
+            if appt.booked_time:
+                existing_datetime = datetime.combine(appt.booked_date, appt.booked_time)
+                time_diff = abs((requested_datetime - existing_datetime).total_seconds() / 60)
+                if time_diff < buffer_minutes:
+                    return False
+        
+        return True
 
 
 class LogoutView(APIView):

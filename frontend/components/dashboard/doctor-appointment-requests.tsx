@@ -52,6 +52,11 @@ export function DoctorAppointmentRequests() {
     }
   }
 
+  // Precompute currently booked slots for the doctor to help client-side validation
+  const bookedSlots = appointments
+    .filter((a) => a.status === 'booked' && a.booked_date && a.booked_time)
+    .map((a) => `${a.booked_date} ${a.booked_time}`)
+
   const updateAppointmentStatus = async (appointmentId: number, status: string, bookedDate?: string, bookedTime?: string) => {
     try {
       const updateData: any = { status }
@@ -69,11 +74,12 @@ export function DoctorAppointmentRequests() {
       })
 
       fetchAppointments()
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating appointment:", error)
+      const errorMessage = error?.detail?.error || error?.message || "Failed to update appointment"
       toast({
         title: "Error",
-        description: "Failed to update appointment",
+        description: errorMessage,
         variant: "destructive"
       })
     }
@@ -173,6 +179,7 @@ export function DoctorAppointmentRequests() {
                 {appointment.status === "accepted" && (
                   <AppointmentBookingForm
                     appointment={appointment}
+                    bookedSlots={bookedSlots}
                     onBook={(date, time) => updateAppointmentStatus(appointment.id, "booked", date, time)}
                   />
                 )}
@@ -190,7 +197,7 @@ interface AppointmentBookingFormProps {
   onBook: (date: string, time: string) => void
 }
 
-function AppointmentBookingForm({ appointment, onBook }: AppointmentBookingFormProps) {
+function AppointmentBookingForm({ appointment, onBook, bookedSlots }: AppointmentBookingFormProps & { bookedSlots: string[] }) {
   const [bookedDate, setBookedDate] = useState("")
   const [bookedTime, setBookedTime] = useState("")
 
@@ -199,6 +206,18 @@ function AppointmentBookingForm({ appointment, onBook }: AppointmentBookingFormP
       toast({
         title: "Error",
         description: "Please select date and time",
+        variant: "destructive"
+      })
+      return
+    }
+
+    // Validate that the selected date/time is not in the past
+    const now = new Date()
+    const selectedDateTime = new Date(`${bookedDate}T${bookedTime}`)
+    if (selectedDateTime < now) {
+      toast({
+        title: "Error",
+        description: "Selected date/time cannot be in the past",
         variant: "destructive"
       })
       return
@@ -227,6 +246,17 @@ function AppointmentBookingForm({ appointment, onBook }: AppointmentBookingFormP
       return
     }
 
+    // Check whether the slot is already taken
+    const slotKey = `${bookedDate} ${bookedTime}`
+    if (bookedSlots.includes(slotKey)) {
+      toast({
+        title: "Error",
+        description: "Selected slot is already booked. Choose another time or date.",
+        variant: "destructive"
+      })
+      return
+    }
+
     onBook(bookedDate, bookedTime)
   }
 
@@ -239,6 +269,7 @@ function AppointmentBookingForm({ appointment, onBook }: AppointmentBookingFormP
           type="date"
           value={bookedDate}
           onChange={(e) => setBookedDate(e.target.value)}
+          min={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
         />
       </div>
       <div className="flex-1">

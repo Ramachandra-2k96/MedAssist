@@ -8,10 +8,12 @@ Key features include:
 - Medication and appointment reminders (with special alerts for pregnant women and children)
 - Speech-to-text engine for transcribing doctors' spoken instructions into readable SMS and printable formats
 - Emoji-based, color-coded medicine schedule showing tablet size, shape, and color
-- Secure storage of health documents (lab reports, X-rays, prescriptions)
+- Secure storage of health documents (lab reports, X-rays, prescriptions) in Google Cloud Storage
 - Doctor monitoring of patient status, query responses, and secure sharing of medical history
 - NLP integration for enhanced user interaction and automated health query responses
 - Support for both digital (web app) and paper-based options for maximum inclusivity
+- Comprehensive Terms & Conditions and Privacy Policy pages
+- Admin panel for managing doctors with email-based authentication
 
 The system combines automation, visual aids, multilingual support, and intuitive design to improve compliance, reduce confusion, ease healthcare providers' workload, and enhance overall healthcare delivery.
 
@@ -123,6 +125,30 @@ medassist/
    ```bash
    python manage.py migrate
    ```
+6. Create an Admin Account.
+```bash
+python manage.py createsuperuser
+```
+7. Now go to [http://127.0.0.1:8000/admin/](http://127.0.0.1:8000/admin/) and use your admin credentials to login.
+
+### Adding Doctors via Admin Panel
+
+After logging into the Django admin panel:
+
+1. **Navigate to Doctors section**: Click on "Doctors" in the admin sidebar
+2. **Add a new doctor**: Click the "Add Doctor" button (top right)
+3. **Fill required fields**:
+   - **Username**: Choose a unique username for the doctor
+   - **Email**: Doctor's email address (required - used for login)
+   - **First Name**: Doctor's first name
+   - **Last Name**: Doctor's last name
+   - **Password**: Set a temporary password (doctor can change later)
+4. **Save the doctor**: Click "Save" to create the doctor account
+
+**Important Notes**:
+- Email must be unique across all users
+- Doctors can login using their email address
+- Use strong passwords for doctor accounts
 
 ### Frontend Setup
 
@@ -172,7 +198,7 @@ python manage.py migrate
 ```
 
 ### Creating the First User
-To create a superuser (admin):
+To create a superuser (admin) if not alredy done:
 ```bash
 python manage.py createsuperuser
 ```
@@ -223,6 +249,8 @@ The application uses Django Crontab to schedule periodic tasks for sending SMS m
 - **Login** (`/login`): User login page
 - **Signup** (`/signup`): User registration page
 - **Doctor Login** (`/doctor-login`): Separate login for doctors
+- **Terms & Conditions** (`/terms`): Comprehensive terms of service
+- **Privacy Policy** (`/privacy`): Detailed privacy policy and data handling
 
 ### Protected Pages (require authentication)
 - **Dashboard** (`/dashboard`): Patient dashboard with overview of health data
@@ -232,59 +260,82 @@ The application uses Django Crontab to schedule periodic tasks for sending SMS m
 
 All API endpoints are prefixed with `/api/` and require authentication (except signup and login).
 
-### Authentication
-- `POST /api/signup/`: User registration
-- `POST /api/login/`: User login
-- `POST /api/logout/`: User logout
+### Authentication Endpoints
+- `POST /api/signup/` - User registration
+- `POST /api/login/` - User login
+- `POST /api/logout/` - User logout
 
 ### Doctor Endpoints
-- `GET /api/doctor/patients/`: List doctor's patients
-- `GET /api/doctor/patients/{patient_id}/records/`: Get patient records
-- `POST /api/doctor/patients/{patient_id}/records/`: Create patient record
-- `GET /api/doctor/patients/{patient_id}/audio/`: Get patient audio recordings
-- `POST /api/doctor/patients/{patient_id}/audio/`: Upload audio recording
-- `GET /api/doctor/patients/{patient_id}/chat/`: Get chat messages with patient
-- `POST /api/doctor/patients/{patient_id}/chat/`: Send message to patient
-- `GET /api/doctor/patients/{patient_id}/prescriptions/`: Get patient prescriptions
-- `POST /api/doctor/patients/{patient_id}/prescriptions/`: Create prescription
-- `GET /api/doctor/profile/`: Get doctor profile
-- `PUT /api/doctor/profile/`: Update doctor profile
-- `GET /api/doctor/appointments/`: Get doctor's appointments
-- `GET /api/doctor/appointments/{appointment_id}/`: Get specific appointment
+- `GET /api/doctor/patients/` - List doctor's patients
+- `GET /api/doctor/patients/{patient_id}/records/` - Get patient records
+- `POST /api/doctor/patients/{patient_id}/records/` - Create patient record
+- `GET /api/doctor/patients/{patient_id}/audio/` - Get patient audio recordings
+- `POST /api/doctor/patients/{patient_id}/audio/` - Upload audio recording
+- `GET /api/doctor/patients/{patient_id}/chat/` - Get chat messages with patient
+- `POST /api/doctor/patients/{patient_id}/chat/` - Send message to patient
+- `GET /api/doctor/patients/{patient_id}/prescriptions/` - Get patient prescriptions
+- `POST /api/doctor/patients/{patient_id}/prescriptions/` - Create prescription
+- `GET /api/doctor/profile/` - Get doctor profile
+- `PUT /api/doctor/profile/` - Update doctor profile
+- `GET /api/doctor/appointments/` - Get doctor's appointments
 
 ### Patient Endpoints
-- `GET /api/patient/dashboard/`: Get patient dashboard data
-- `GET /api/patient/records/`: Get patient's records
-- `POST /api/patient/records/`: Upload patient record
-- `GET /api/patient/audio/`: Get patient's audio recordings
-- `POST /api/patient/audio/`: Upload audio recording
-- `GET /api/patient/chat/`: Get chat messages
-- `POST /api/patient/chat/`: Send message
-- `GET /api/patient/prescriptions/`: Get patient's prescriptions
-- `GET /api/patient/doctors/`: Get patient's doctors
-- `GET /api/patient/appointments/`: Get patient's appointments
-- `GET /api/patient/medication-logs/`: Get medication logs
-- `POST /api/patient/medication-logs/`: Log taken medication
-- `GET /api/patient/ai-chat/`: AI chat for health queries
+- `GET /api/patient/dashboard/` - Get patient dashboard data
+- `GET /api/patient/records/` - Get patient's records
+- `POST /api/patient/records/` - Upload patient record
+- `GET /api/patient/audio/` - Get patient's audio recordings
+- `POST /api/patient/audio/` - Upload audio recording
+- `GET /api/patient/chat/` - Get chat messages
+- `POST /api/patient/chat/` - Send message
+- `GET /api/patient/prescriptions/` - Get patient's prescriptions
+- `GET /api/patient/doctors/` - Get patient's doctors
+- `GET /api/patient/appointments/` - Get patient's appointments
+- `GET /api/patient/medication-logs/` - Get medication logs
+- `POST /api/patient/medication-logs/` - Log taken medication
+- `GET /api/patient/ai-chat/` - AI chat for health queries
 
 ### Utility Endpoints
-- `POST /api/test-sms/`: Test SMS sending functionality
+- `POST /api/test-sms/` - Test SMS sending functionality
 
 ## SMS Features
 
-### Medication Reminders
+#### SMS Service Configuration
+The application supports multiple SMS providers with automatic fallback:
+
+- **Primary**: Twilio (if credentials provided)
+- **Secondary**: AWS SNS (if Twilio unavailable or credentials not provided)
+- **Fallback**: If both services are configured, Twilio takes priority
+
+#### Configuration
+Set the appropriate environment variables in your `.env` file:
+
+**For Twilio (Preferred)**:
+```env
+TWILIO_ACCOUNT_SID=your-twilio-account-sid
+TWILIO_AUTH_TOKEN=your-twilio-auth-token
+TWILIO_FROM_NUMBER=+1234567890
+```
+
+**For AWS SNS (Fallback)**:
+```env
+AWS_ACCESS_KEY_ID=your-aws-access-key-id
+AWS_SECRET_ACCESS_KEY=your-aws-secret-access-key
+AWS_REGION=us-east-1
+```
+
+#### Medication Reminders
 - Automated SMS reminders for missed medication doses
 - Supports multiple frequencies: daily, multiple times per day, hourly intervals
 - Personalized messages with medicine name and scheduled time
 - Tracks sent reminders to prevent duplicates
 - Configurable grace period (currently 10 minutes)
 
-### SMS Sending
-- Uses Twilio for SMS delivery
-- Requires patient's phone number in profile
+#### SMS Sending
+- Phone numbers are automatically normalized to international format (+91 for India)
 - Messages include instructions to log in and mark doses as taken
+- Comprehensive logging for debugging and monitoring
 
-### Testing SMS
+#### Testing SMS
 - Test endpoint available at `/api/test-sms/` for development
 - Allows verification of SMS configuration
 
@@ -294,6 +345,7 @@ All API endpoints are prefixed with `/api/` and require authentication (except s
 
 Create a `.env` file in the `backend/` directory with the following variables:
 
+#### Required Variables
 ```env
 # Twilio Configuration
 TWILIO_ACCOUNT_SID=your-twilio-account-sid
@@ -305,45 +357,74 @@ AWS_ACCESS_KEY_ID=your-aws-access-key-id
 AWS_SECRET_ACCESS_KEY=your-aws-secret-access-key
 AWS_REGION=us-east-1
 
-# Cerebras API (for AI features)
+# Cerebras API (for AI chat features)
 CEREBRUS_API_KEY=your-cerebras-api-key
-CEREBRUS_API_URL=https://api.cerebrus.com
 
-GCP_SERVICE_ACCOUNT_FILE=path to .json file
-GCP_BUCKET_NAME=medassist-bucket  (must be unique)
+# GCP Cloud Storage (Required for file uploads)
+GCP_SERVICE_ACCOUNT_FILE=/absolute/path/to/backend/your-service-account.json
+GCP_BUCKET_NAME=your-unique-bucket-name
 ```
-#### Read thsi for GCP setup
 
-[GCP_Setup](backend/GCP_SETUP.md)
+#### Optional Variables
+```env
+# Database URL (for PostgreSQL or other databases)
+DATABASE_URL=postgresql://user:password@localhost:5432/medassist
 
+# Debug mode (set to False in production)
+DEBUG=True
+
+# Allowed hosts (add your domain in production)
+ALLOWED_HOSTS=localhost,127.0.0.1
+```
 
 ### Frontend (.env file in frontend/ directory)
 
-The frontend `.env` file should contain:
-
 ```env
+# Backend API URL
 NEXT_PUBLIC_API_URL=http://127.0.0.1:8000/api
 ```
 
-Update this URL if your backend is running on a different host/port.
+**Note**: Update `NEXT_PUBLIC_API_URL` if your backend runs on a different host/port.
 
 ## Additional Notes
 
+### System Architecture
 - The application uses JWT tokens for authentication with a 15-day expiration
-- Media files (audio recordings, medical records) are stored in the `media/` directory
+- Media files (audio recordings, medical records) are stored securely in Google Cloud Storage
 - Logs are written to `logs/cron.log` for cron job activities
 - The system supports both fixed-time schedules and interval-based medication frequencies
 - AI features are powered by Cerebras API for enhanced patient interactions
+
+### Frontend Details
 - The frontend uses modern React patterns with TypeScript for type safety
 - Tailwind CSS provides responsive, utility-first styling
+- Next.js App Router for optimal performance and SEO
 - CORS is configured to allow requests from the Next.js development server
 
-For production deployment, ensure to:
+### Production Deployment Checklist
 - Set `DEBUG=False` in Django settings
 - Use a production-grade database (PostgreSQL recommended)
-- Configure proper static file serving
-- Set up HTTPS
+- Configure proper static file serving and CDN
+- Set up HTTPS with SSL certificates
 - Use environment-specific environment variables
-- Configure proper logging and monitoring</content>
-<parameter name="filePath">/home/ramachandra/Documents/medassist/README.md
+- Configure proper logging and monitoring
+- Set up automated backups
+- Enable Django security middleware
+- Configure rate limiting and DDoS protection
+
+### Troubleshooting
+
+#### Common Issues
+- **File upload fails**: Check GCP service account file path and permissions
+- **SMS not sending**: Verify Twilio credentials and phone number format
+- **Email login not working**: Ensure doctor accounts have valid email addresses
+- **Database errors**: Run `python manage.py migrate` after code changes
+
+#### Getting Help
+- Check Django logs: `tail -f logs/cron.log`
+- Verify environment variables are loaded correctly
+- Test API endpoints with tools like Postman
+- Check browser console for frontend errors
+
+For additional support, refer to the individual service documentation (Twilio, GCP, AWS).
 

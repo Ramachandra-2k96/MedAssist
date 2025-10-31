@@ -69,6 +69,32 @@ export function PatientAppointmentRequest() {
       return
     }
 
+    // Validate dates: start <= end and not in the past
+    const now = new Date()
+    const start = new Date(formData.requested_start_date)
+    const end = new Date(formData.requested_end_date)
+
+    if (end < start) {
+      toast({
+        title: "Error",
+        description: "End date must be the same or after start date",
+        variant: "destructive"
+      })
+      return
+    }
+
+    // prevent requesting a range that is entirely in the past
+    // allow if start is today or later
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    if (start < today) {
+      toast({
+        title: "Error",
+        description: "Start date cannot be in the past",
+        variant: "destructive"
+      })
+      return
+    }
+
     setSubmitting(true)
     try {
       await apiFetch("/patient/appointments/", {
@@ -86,11 +112,12 @@ export function PatientAppointmentRequest() {
         requested_end_date: "",
         notes: ""
       })
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error submitting appointment request:", error)
+      const errorMessage = error?.detail?.error || error?.message || "Failed to send appointment request"
       toast({
         title: "Error",
-        description: "Failed to send appointment request",
+        description: errorMessage,
         variant: "destructive"
       })
     } finally {
@@ -149,6 +176,7 @@ export function PatientAppointmentRequest() {
                 type="date"
                 value={formData.requested_start_date}
                 onChange={(e) => handleInputChange("requested_start_date", e.target.value)}
+                min={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
                 required
               />
             </div>
@@ -159,6 +187,7 @@ export function PatientAppointmentRequest() {
                 type="date"
                 value={formData.requested_end_date}
                 onChange={(e) => handleInputChange("requested_end_date", e.target.value)}
+                min={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
                 required
               />
             </div>

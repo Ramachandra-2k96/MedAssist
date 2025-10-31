@@ -171,7 +171,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ mode, onSuccess }) => {
           <div className="flex items-start space-x-2">
             <input type="checkbox" id="terms" className="mt-1 rounded border-border bg-background text-primary focus:ring-primary/20" required />
             <label htmlFor="terms" className="text-sm text-muted-foreground">
-              I agree to the <a href="#" className="text-primary hover:text-primary/80">Terms of Service</a> and <a href="#" className="text-primary hover:text-primary/80">Privacy Policy</a>
+              I agree to the <a href="/terms" className="text-primary hover:text-primary/80">Terms of Service</a> and <a href="/privacy" className="text-primary hover:text-primary/80">Privacy Policy</a>
             </label>
           </div>
         )}

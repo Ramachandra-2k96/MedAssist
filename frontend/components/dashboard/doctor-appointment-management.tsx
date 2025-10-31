@@ -73,11 +73,12 @@ export function DoctorAppointmentManagement() {
 
       // Refresh appointments
       fetchAppointments()
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating appointment:", error)
+      const errorMessage = error?.detail?.error || error?.message || "Failed to update appointment"
       toast({
         title: "Error",
-        description: "Failed to update appointment",
+        description: errorMessage,
         variant: "destructive"
       })
     } finally {
@@ -225,6 +226,7 @@ function AppointmentBookingForm({ appointment, onBook, updating }: AppointmentBo
           type="date"
           value={bookedDate}
           onChange={(e) => setBookedDate(e.target.value)}
+          min={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
         />
       </div>
       <div className="flex-1">
