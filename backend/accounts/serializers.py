@@ -346,7 +346,15 @@ class LoginSerializer(serializers.Serializer):
         if not email or not password:
             raise serializers.ValidationError('Must include email and password.')
         
-        user = authenticate(username=email, password=password)
+        # Try to find user by email first
+        user_obj = User.objects.filter(email=email).first()
+        
+        if user_obj:
+            # If user found by email, use their username for authentication
+            user = authenticate(username=user_obj.username, password=password)
+        else:
+            # Fallback to using email as username (legacy behavior)
+            user = authenticate(username=email, password=password)
         
         if not user:
             raise serializers.ValidationError('Unable to log in with provided credentials.')

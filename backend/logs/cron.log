@@ -1,7 +1,17 @@
-MOCK SMS: To +919353867431 - Dr. Doctor 1 has scheduled an appointment for you on 2025-10-24 at 10:27:00.
-MOCK SMS: To +919353867431 - Dr. Doctor 1 has scheduled an appointment for you on 2025-10-24 at 10:27:00.
-MOCK SMS: To +919353867431 - Dr. Doctor 1: This should work now
-MOCK SMS: To +919353867431 - Dr. Doctor 1: Hello hello make testing 1-2 three Hello hello hello hello make testing.
-MOCK SMS: To +919353867431 - Reminder: You missed your paracetamol dose scheduled at 08:00 on 2025-10-24. Please log in to the portal to mark it as taken.
-MOCK SMS: To +919353867431 - Dr. Doctor 1: No speech detected during recording.
-MOCK SMS: To +919353867431 - Dr. Doctor 1: Hello, Hello, Mickelstein 123. Uh, actually for your day, you need to get 2 grams of mortil, uh, everyday or next three days, uh, take it two times a day and even after, uh, three days go then please come away.
+Attempting to send SMS to +919353867431: Reminder: You missed your Mortil dose scheduled at...
+Twilio available: True
+Twilio SMS failed
+Traceback (most recent call last):
+  File "/home/ramachandra/Documents/medassist/backend/accounts/utils.py", line 51, in send_sms
+    msg = client.messages.create(
+          ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ramachandra/Documents/medassist/backend/.venv/lib/python3.12/site-packages/twilio/rest/api/v2010/account/message/__init__.py", line 589, in create
+    payload = self._version.create(
+              ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ramachandra/Documents/medassist/backend/.venv/lib/python3.12/site-packages/twilio/base/version.py", line 463, in create
+    return self._parse_create(method, uri, response)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ramachandra/Documents/medassist/backend/.venv/lib/python3.12/site-packages/twilio/base/version.py", line 435, in _parse_create
+    raise self.exception(method, uri, response, "Unable to create record")
+twilio.base.exceptions.TwilioRestException: HTTP 400 error: Unable to create record: The number +91935386XXXX is unverified. Trial accounts cannot send messages to unverified numbers; verify +91935386XXXX at twilio.com/user/account/phone-numbers/verified, or purchase a Twilio number to send messages to unverified numbers
+Password reset email sent successfully to ramachandraudupa2004@gmail.com
