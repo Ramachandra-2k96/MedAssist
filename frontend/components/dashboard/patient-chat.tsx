@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { apiFetch } from "@/lib/api"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { useToast } from "@/hooks/use-toast"
 
 interface Message {
   id: number
@@ -24,6 +25,7 @@ export function PatientChat({ patientId, patientName }: PatientChatProps) {
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [newMessage, setNewMessage] = useState("")
+  const { toast } = useToast()
 
   useEffect(() => {
     if (patientId) {
@@ -35,8 +37,13 @@ export function PatientChat({ patientId, patientName }: PatientChatProps) {
     try {
       const data = await apiFetch<Message[]>(`/doctor/patients/${patientId}/chat/`)
       setMessages(data || [])
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching messages:', error)
+      toast({
+        variant: "destructive",
+        title: "Error fetching messages",
+        description: error?.detail ? JSON.stringify(error.detail) : "Could not load chat history."
+      })
     } finally {
       setLoading(false)
     }
@@ -52,8 +59,13 @@ export function PatientChat({ patientId, patientName }: PatientChatProps) {
         setMessages(prev => [...prev, data])
         setNewMessage("")
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending message:', error)
+      toast({
+        variant: "destructive",
+        title: "Error sending message",
+        description: error?.detail ? JSON.stringify(error.detail) : "Could not send message."
+      })
     } finally {
       setSending(false)
     }

@@ -12,6 +12,7 @@ import { API_BASE_URL, MEDIA_BASE_URL } from "@/lib/config";
 import { apiFetch } from "@/lib/api";
 import { useParams } from "next/navigation";
 import { Stethoscope } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface Patient {
   id: string;
@@ -33,6 +34,7 @@ export default function DoctorDashboard() {
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(true);
   const [doctorProfile, setDoctorProfile] = useState<any>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchPatients();
@@ -45,6 +47,7 @@ export default function DoctorDashboard() {
       setDoctorProfile(data)
     } catch (error) {
       console.error('Error fetching doctor profile:', error)
+      // Silent fail for profile is okay, or maybe a subtle toast
     }
   };
 
@@ -64,8 +67,13 @@ export default function DoctorDashboard() {
         }))
         .filter((patient: Patient) => patient.id && patient.name); // Filter out patients without id or name
       setPatients(formattedPatients);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching patients:', error);
+      toast({
+        variant: "destructive",
+        title: "Error fetching patients",
+        description: error?.detail ? JSON.stringify(error.detail) : "Could not load patient list."
+      })
     }
     setLoading(false);
   };
@@ -76,9 +84,18 @@ export default function DoctorDashboard() {
         method: 'POST',
         body: JSON.stringify({ email: patientData.email }),
       })
+      toast({
+        title: "Patient added",
+        description: "Patient has been successfully added to your list."
+      })
       fetchPatients() // Refresh list
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding patient:', error);
+      toast({
+        variant: "destructive",
+        title: "Error adding patient",
+        description: error?.detail ? JSON.stringify(error.detail) : "Could not add patient. Check if email is correct."
+      })
     }
   };
 

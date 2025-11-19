@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Trash2, Play, Pause, FileAudio, Languages, Volume2, Mic, MicOff } from "lucide-react"
+import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition'
 import { API_BASE_URL } from "@/lib/config"
-import { apiFetch } from "@/lib/api"
-import { buildMediaUrl } from "@/lib/media"
-import SpeechRecognition, { useSpeechRecognition } from "react-speech-recognition"
+import { apiFetch } from '@/lib/api'
+import { buildMediaUrl } from '@/lib/media'
+import { useToast } from '@/hooks/use-toast'
 
 interface Recording {
   id: number
@@ -45,6 +46,7 @@ export function PatientRecordings({ patientId, patientName }: PatientRecordingsP
   const finalTranscriptRef = useRef<string | null>(null)
 
   const { transcript, listening, resetTranscript, browserSupportsSpeechRecognition } = useSpeechRecognition()
+  const { toast } = useToast()
 
   useEffect(() => {
     if (patientId) {
@@ -276,8 +278,17 @@ export function PatientRecordings({ patientId, patientName }: PatientRecordingsP
         delete audioRefs.current[id]
       }
       setRecordings(prev => prev.filter(r => r.id !== id))
-    } catch (error) {
+      toast({
+        title: "Recording deleted",
+        description: "The audio recording has been successfully deleted."
+      })
+    } catch (error: any) {
       console.error('Error deleting recording:', error)
+      toast({
+        variant: "destructive",
+        title: "Delete failed",
+        description: error?.detail ? JSON.stringify(error.detail) : "Could not delete recording."
+      })
     }
   }
 

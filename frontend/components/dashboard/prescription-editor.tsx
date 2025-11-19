@@ -10,7 +10,8 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Pill, Clock, Plus, Trash2, Save, FileText, Calendar, Timer } from "lucide-react"
 import { API_BASE_URL } from "@/lib/config"
-import { apiFetch } from "@/lib/api"
+import { apiFetch } from '@/lib/api'
+import { useToast } from '@/hooks/use-toast'
 
 interface Medicine {
   name: string
@@ -31,7 +32,7 @@ interface Prescription {
 interface PrescriptionEditorProps {
   patientName: string
   patientId: string
-  onSave: (prescription: { medicines: Medicine[]; notes: string; duration_days: number }) => void
+  onSave?: (prescription: { medicines: Medicine[]; notes: string; duration_days: number }) => void
   onUpdate?: (prescriptionId: number, prescription: { medicines: Medicine[]; notes: string }) => void
   onDelete?: (prescriptionId: number) => void
 }
@@ -81,16 +82,19 @@ const dosageUnits = [
   { value: "puffs", label: "puffs" }
 ]
 
-export function PrescriptionEditor({ patientName, patientId, onSave }: PrescriptionEditorProps) {
+export function PrescriptionEditor({ patientId, patientName, onDelete }: PrescriptionEditorProps) {
+  const [prescriptions, setPrescriptions] = useState<Prescription[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showAddForm, setShowAddForm] = useState(false)
+  const { toast } = useToast()
+
+  // New prescription state
   const [medicines, setMedicines] = useState<Medicine[]>([
     { name: "", dosage: "", frequency: "", duration: "", emoji: "💊", color: "#FF6B6B" }
   ])
   const [notes, setNotes] = useState("")
   const [prescriptionDuration, setPrescriptionDuration] = useState("7-days")
-  const [prescriptions, setPrescriptions] = useState<Prescription[]>([])
-  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [showAddForm, setShowAddForm] = useState(false)
 
   useEffect(() => {
     if (patientId) {
@@ -144,7 +148,18 @@ export function PrescriptionEditor({ patientName, patientId, onSave }: Prescript
 
     setSaving(true)
     try {
-      await onSave({ medicines: validMedicines, notes, duration_days: durationDays })
+      // We need to call the API directly here instead of relying on onSave prop
+      // because onSave was originally designed for a different flow
+      await apiFetch(`/doctor/patients/${patientId}/prescriptions/`, {
+        method: 'POST',
+        body: JSON.stringify({ medicines: validMedicines, notes, duration_days: durationDays })
+      })
+      
+      toast({
+        title: "Prescription saved",
+        description: "The prescription has been successfully created."
+      })
+
       // Reset form
       setMedicines([{ name: "", dosage: "", frequency: "", duration: "", emoji: "💊", color: "#FF6B6B" }])
       setNotes("")
@@ -152,6 +167,13 @@ export function PrescriptionEditor({ patientName, patientId, onSave }: Prescript
       setShowAddForm(false)
       // Refresh prescriptions
       fetchPrescriptions()
+    } catch (error: any) {
+      console.error('Error saving prescription:', error)
+      toast({
+        variant: "destructive",
+        title: "Save failed",
+        description: error?.detail ? JSON.stringify(error.detail) : "Could not save prescription."
+      })
     } finally {
       setSaving(false)
     }
@@ -164,8 +186,18 @@ export function PrescriptionEditor({ patientName, patientId, onSave }: Prescript
         body: JSON.stringify({ prescription_id: prescriptionId })
       })
       setPrescriptions(prescriptions.filter(p => p.id !== prescriptionId))
-    } catch (error) {
+      toast({
+        title: "Prescription deleted",
+        description: "The prescription has been successfully deleted."
+      })
+      if (onDelete) onDelete(prescriptionId)
+    } catch (error: any) {
       console.error('Error deleting prescription:', error)
+      toast({
+        variant: "destructive",
+        title: "Delete failed",
+        description: error?.detail ? JSON.stringify(error.detail) : "Could not delete prescription."
+      })
     }
   }
 
@@ -492,4 +524,4 @@ export function PrescriptionEditor({ patientName, patientId, onSave }: Prescript
   )
 }
 
- 
+

@@ -5,10 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Upload, Trash2 } from "lucide-react"
 import { API_BASE_URL } from "@/lib/config"
-import { apiFetch } from "@/lib/api"
-import { buildMediaUrl } from "@/lib/media"
-import { Trash2, Upload } from "lucide-react"
+import { apiFetch } from '@/lib/api'
+import { buildMediaUrl } from '@/lib/media'
+import { useToast } from '@/hooks/use-toast'
 
 interface Record {
   id: number
@@ -28,12 +29,10 @@ export function PatientRecords({ patientId, patientName }: PatientRecordsProps) 
   const [records, setRecords] = useState<Record[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
-
-  const [newRecord, setNewRecord] = useState({
-    type: "",
-    title: "",
-    file: null as File | null
+  const [newRecord, setNewRecord] = useState<{ title: string, type: string, file: File | null }>({
+    title: '', type: 'General', file: null
   })
+  const { toast } = useToast()
 
   useEffect(() => {
     if (patientId) {
@@ -78,8 +77,17 @@ export function PatientRecords({ patientId, patientName }: PatientRecordsProps) 
     try {
       await apiFetch(`/doctor/patients/${patientId}/records/`, { method: 'DELETE', body: JSON.stringify({ record_id: id }) })
       setRecords(prev => prev.filter(r => r.id !== id))
-    } catch (error) {
+      toast({
+        title: "Record deleted",
+        description: "The medical record has been successfully deleted."
+      })
+    } catch (error: any) {
       console.error('Error deleting record:', error)
+      toast({
+        variant: "destructive",
+        title: "Delete failed",
+        description: error?.detail ? JSON.stringify(error.detail) : "Could not delete record."
+      })
     }
   }
 

@@ -144,7 +144,6 @@ export const PatientView: React.FC<Props> = ({
               <PrescriptionEditor
                 patientId={patientId}
                 patientName={patientName}
-                onSave={onSavePrescription ?? (() => undefined)}
               />
             </div>
           )}

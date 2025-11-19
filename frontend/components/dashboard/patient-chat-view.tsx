@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { API_BASE_URL } from '@/lib/config'
 import { apiFetch, buildQuery } from '@/lib/api'
+import { useToast } from '@/hooks/use-toast'
 
 interface ChatMessage {
   id: number|string
@@ -20,6 +21,7 @@ export function PatientChatView({ doctorId }: { doctorId: number | null }) {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const bottomRef = useRef<HTMLDivElement|null>(null)
+  const { toast } = useToast()
 
   useEffect(()=>{ fetchMessages() }, [doctorId])
   useEffect(()=>{ bottomRef.current?.scrollIntoView({behavior:'smooth'}) }, [messages])
@@ -30,7 +32,14 @@ export function PatientChatView({ doctorId }: { doctorId: number | null }) {
       const qs = buildQuery({ doctor_id: doctorId })
       const data = await apiFetch<ChatMessage[]>(`/patient/chat/${qs}`)
       if (data) setMessages(data)
-    } catch(e){ console.error(e) }
+    } catch(e: any){ 
+      console.error(e)
+      toast({
+        variant: "destructive",
+        title: "Error fetching messages",
+        description: e?.detail ? JSON.stringify(e.detail) : "Could not load chat history."
+      })
+    }
   }
 
   const sendMessage = async () => {
@@ -41,7 +50,14 @@ export function PatientChatView({ doctorId }: { doctorId: number | null }) {
     try {
       await apiFetch(`/patient/chat/`, { method:'POST', body: JSON.stringify({ text: msg, doctor: doctorId }) })
       fetchMessages()
-    } catch(e){ console.error(e) }
+    } catch(e: any){ 
+      console.error(e)
+      toast({
+        variant: "destructive",
+        title: "Error sending message",
+        description: e?.detail ? JSON.stringify(e.detail) : "Could not send message."
+      })
+    }
   }
 
   return (
