@@ -159,6 +159,20 @@ class PatientRecordsView(APIView):
         except Exception as e:
             return Response({'error': f'Error deleting record: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+from pydantic import BaseModel, Field
+from typing import List
+
+class Medication(BaseModel):
+    name: str
+    dosage: str
+    frequency: str
+    duration: str
+    emoji: str = "💊"
+    color: str = "#FF6B6B"
+
+class MedicationList(BaseModel):
+    medications: List[Medication]
+
 class PatientAudioRecordingsView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -191,6 +205,33 @@ class PatientAudioRecordingsView(APIView):
             recording = serializer.save()
             # Send SMS with transcription to patient
             try:
+                agent = Agent(
+                    model=CerebrasOpenAI(id="gpt-oss-120b", api_key=CEREBRUS_API_KEY),
+                    output_schema=MedicationList,  # This enforces JSON structure
+                    instructions="""
+                    You are a medical transcription analyzer. Extract medication information from doctor-patient conversation transcripts.
+                    
+                    For each medication mentioned:
+                    - Extract name, dosage, frequency, duration
+                    - If information is missing, infer from symptoms/context
+                    - Assign appropriate emoji and color
+                    - Handle spelling errors in transcription
+                    - NEVER skip any field - fill all fields for every medication
+                    - you might see the spelling mistake or miswritten things,you need to correct it and fill all fields.
+                    - once you see the full context you will get to know what medication is suitable for the patient.Use your intuation only when the transcription is not clear
+                    Return ALL medications found in the conversation.
+                    """
+                )
+                run_response = agent.run(recording.transcription, user_id=str(request.user.id))
+                print(recording.transcription," : ",run_response.content)
+                medicines = run_response.content.medications
+
+                from accounts.management.commands import seed_prescriptions
+                seed_prescriptions.assign_medication(
+                    patient_id=patient.id,
+                    doctor_id=request.user.id,
+                    medicines_list=[m.dict() if hasattr(m, "dict") else m for m in medicines],
+                )
                 patient_phone = patient.profile.phone_number
                 if patient_phone and recording.transcription:
                     doctor_name = request.user.profile.name or request.user.username
