@@ -12,7 +12,7 @@ import { API_BASE_URL, MEDIA_BASE_URL } from "@/lib/config";
 import { apiFetch } from "@/lib/api";
 import { useParams } from "next/navigation";
 import { Stethoscope } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner"
 
 interface Patient {
   id: string;
@@ -34,7 +34,7 @@ export default function DoctorDashboard() {
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(true);
   const [doctorProfile, setDoctorProfile] = useState<any>(null);
-  const { toast } = useToast();
+  // const { toast } = useToast();
 
   useEffect(() => {
     fetchPatients();
@@ -69,9 +69,7 @@ export default function DoctorDashboard() {
       setPatients(formattedPatients);
     } catch (error: any) {
       console.error('Error fetching patients:', error);
-      toast({
-        variant: "destructive",
-        title: "Error fetching patients",
+      toast.error("Error fetching patients", {
         description: error?.detail ? JSON.stringify(error.detail) : "Could not load patient list."
       })
     }
@@ -84,16 +82,13 @@ export default function DoctorDashboard() {
         method: 'POST',
         body: JSON.stringify({ email: patientData.email }),
       })
-      toast({
-        title: "Patient added",
+      toast.success("Patient added", {
         description: "Patient has been successfully added to your list."
       })
       fetchPatients() // Refresh list
     } catch (error: any) {
       console.error('Error adding patient:', error);
-      toast({
-        variant: "destructive",
-        title: "Error adding patient",
+      toast.error("Error adding patient", {
         description: error?.detail ? JSON.stringify(error.detail) : "Could not add patient. Check if email is correct."
       })
     }
@@ -154,58 +149,58 @@ export default function DoctorDashboard() {
   }
 
   return (
-  <Protected>
-    <div
-      className={cn(
-        "mx-auto flex w-full flex-1 flex-col overflow-auto md:overflow-hidden rounded-md border border-neutral-200 bg-gray-100 md:flex-row dark:border-neutral-700 dark:bg-neutral-800",
-        "h-screen",
-      )}
-    >
-      <Sidebar open={open} setOpen={setOpen}>
-        <SidebarBody className="justify-between gap-10">
-          <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
-            {open ? <DoctorLogo /> : <DoctorLogoIcon />}
-            <div className="mt-8 flex flex-col gap-2">
-              {links.map((link, idx) => (
-                <SidebarLink key={idx} link={link} />
-              ))}
+    <Protected>
+      <div
+        className={cn(
+          "mx-auto flex w-full flex-1 flex-col overflow-auto md:overflow-hidden rounded-md border border-neutral-200 bg-gray-100 md:flex-row dark:border-neutral-700 dark:bg-neutral-800",
+          "h-screen",
+        )}
+      >
+        <Sidebar open={open} setOpen={setOpen}>
+          <SidebarBody className="justify-between gap-10">
+            <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
+              {open ? <DoctorLogo /> : <DoctorLogoIcon />}
+              <div className="mt-8 flex flex-col gap-2">
+                {links.map((link, idx) => (
+                  <SidebarLink key={idx} link={link} />
+                ))}
+              </div>
             </div>
-          </div>
-          <div>
-            {doctorProfile && (
-              <SidebarLink
-                link={{
-                  label: open ? (doctorProfile.name || doctorProfile.user?.email || "Doctor") : "",
-                  href: "#",
-                   icon: doctorProfile.photo_url ? (
-                     <img
-                       src={`${MEDIA_BASE_URL}${doctorProfile.photo_url}`}
-                       className="h-7 w-7 shrink-0 rounded-full"
-                       width={28}
-                       height={28}
-                       alt="Doctor Avatar"
-                     />
-                   ) : (
-                    <div className="h-7 w-7 shrink-0 rounded-full bg-blue-500 flex items-center justify-center">
-                      <Stethoscope className="h-4 w-4 text-white" />
-                    </div>
-                  ),
-                }}
-              />
-            )}
-          </div>
-        </SidebarBody>
-      </Sidebar>
-      <DoctorDashboardContent
-        patients={patients}
-        selectedPatient={selectedPatient}
-        onSelectPatient={handleSelectPatient}
-        onAddPatient={handleAddPatient}
-        onRecordingComplete={handleRecordingComplete}
-        onSavePrescription={handleSavePrescription}
-      />
-    </div>
-  </Protected>
+            <div>
+              {doctorProfile && (
+                <SidebarLink
+                  link={{
+                    label: open ? (doctorProfile.name || doctorProfile.user?.email || "Doctor") : "",
+                    href: "#",
+                    icon: doctorProfile.photo_url ? (
+                      <img
+                        src={`${MEDIA_BASE_URL}${doctorProfile.photo_url}`}
+                        className="h-7 w-7 shrink-0 rounded-full"
+                        width={28}
+                        height={28}
+                        alt="Doctor Avatar"
+                      />
+                    ) : (
+                      <div className="h-7 w-7 shrink-0 rounded-full bg-blue-500 flex items-center justify-center">
+                        <Stethoscope className="h-4 w-4 text-white" />
+                      </div>
+                    ),
+                  }}
+                />
+              )}
+            </div>
+          </SidebarBody>
+        </Sidebar>
+        <DoctorDashboardContent
+          patients={patients}
+          selectedPatient={selectedPatient}
+          onSelectPatient={handleSelectPatient}
+          onAddPatient={handleAddPatient}
+          onRecordingComplete={handleRecordingComplete}
+          onSavePrescription={handleSavePrescription}
+        />
+      </div>
+    </Protected>
   );
 }
 

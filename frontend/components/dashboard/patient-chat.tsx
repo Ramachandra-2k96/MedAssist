@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { apiFetch } from "@/lib/api"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 
 interface Message {
   id: number
@@ -25,7 +25,6 @@ export function PatientChat({ patientId, patientName }: PatientChatProps) {
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [newMessage, setNewMessage] = useState("")
-  const { toast } = useToast()
 
   useEffect(() => {
     if (patientId) {
@@ -39,9 +38,7 @@ export function PatientChat({ patientId, patientName }: PatientChatProps) {
       setMessages(data || [])
     } catch (error: any) {
       console.error('Error fetching messages:', error)
-      toast({
-        variant: "destructive",
-        title: "Error fetching messages",
+      toast.error("Error fetching messages", {
         description: error?.detail ? JSON.stringify(error.detail) : "Could not load chat history."
       })
     } finally {
@@ -61,9 +58,7 @@ export function PatientChat({ patientId, patientName }: PatientChatProps) {
       }
     } catch (error: any) {
       console.error('Error sending message:', error)
-      toast({
-        variant: "destructive",
-        title: "Error sending message",
+      toast.error("Error sending message", {
         description: error?.detail ? JSON.stringify(error.detail) : "Could not send message."
       })
     } finally {
@@ -90,11 +85,10 @@ export function PatientChat({ patientId, patientName }: PatientChatProps) {
                   className={`flex ${message.sender === "doctor" ? "justify-end" : "justify-start"}`}
                 >
                   <div
-                    className={`max-w-xs p-2 rounded-lg ${
-                      message.sender === "doctor"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted"
-                    }`}
+                    className={`max-w-xs p-2 rounded-lg ${message.sender === "doctor"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted"
+                      }`}
                   >
                     <p className="text-sm">{message.text}</p>
                     <p className="text-xs opacity-70">

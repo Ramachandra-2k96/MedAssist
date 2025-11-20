@@ -44,6 +44,9 @@ def send_sms(message_text: str, recipient: str) -> str:
     logger.info(f"Twilio available: {twilio_available}")
 
     twilio_exception = None
+    aws_exception = None
+    
+    # Try Twilio first if available
     if twilio_available:
         try:
             # Use Twilio
@@ -58,24 +61,21 @@ def send_sms(message_text: str, recipient: str) -> str:
 
         except Exception as e:
             twilio_exception = e
-            logger.exception("Twilio SMS failed")
-            # Fall back to AWS if Twilio fails
+            logger.exception("Twilio SMS failed, attempting fallback to AWS")
 
-    else:
-        # Check if AWS credentials are available using direct attribute access
-        try:
-            aws_key = settings.AWS_ACCESS_KEY_ID
-            aws_secret = settings.AWS_SECRET_ACCESS_KEY
-            aws_region = settings.AWS_REGION
-            aws_available = bool(aws_key and aws_secret and aws_region)
-        except Exception:
-            aws_available = False
+    # Fallback to AWS if Twilio wasn't available or failed
+    # Check if AWS credentials are available
+    try:
+        aws_key = settings.AWS_ACCESS_KEY_ID
+        aws_secret = settings.AWS_SECRET_ACCESS_KEY
+        aws_region = settings.AWS_REGION
+        aws_available = bool(aws_key and aws_secret and aws_region)
+    except Exception:
+        aws_available = False
 
-        logger.info(f"AWS available: {aws_available}")
-        if aws_available:
-            logger.info("AWS Region is configured")
-
-        aws_exception = None
+    logger.info(f"AWS available: {aws_available}")
+    
+    if aws_available:
         try:
             # Use AWS SNS
             sns_client = boto3.client(

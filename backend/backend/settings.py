@@ -49,7 +49,8 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
     "accounts",
-    "django_crontab",
+    # "django_crontab",
+    "django_apscheduler",
 ]
 
 MIDDLEWARE = [
@@ -112,6 +113,9 @@ else:
             "default": {
                 "ENGINE": "django.db.backends.sqlite3",
                 "NAME": BASE_DIR / "db.sqlite3",
+                "OPTIONS": {
+                    "timeout": 20,
+                },
             }
         }
 
@@ -237,6 +241,6 @@ BREVO_API_EMAIL = env("Brevo_API_Email",default='')
 
 CEREBRUS_API_KEY = env("CEREBRUS_API_KEY")
 
-CRONJOBS = [
-    ('*/20 * * * *', 'accounts.cron.send_medication_reminders'),
-]
+# CRONJOBS = [
+#     ('*/20 * * * *', 'accounts.cron.send_medication_reminders'),
+# ]

@@ -5,6 +5,7 @@ aiohttp-retry==2.9.1
 aiosignal==1.4.0
 annotated-types==0.7.0
 anyio==4.10.0
+APScheduler==3.11.1
 asgiref==3.9.1
 attrs==25.3.0
 boto3==1.40.30
@@ -16,6 +17,7 @@ charset-normalizer==3.4.3
 click==8.2.1
 distro==1.9.0
 Django==5.2.6
+django-apscheduler==0.7.0
 django-cors-headers==4.8.0
 django-crontab==0.7.1
 django-environ==0.12.0
@@ -78,5 +80,9 @@ twilio==9.8.0
 typer==0.17.4
 typing-inspection==0.4.1
 typing_extensions==4.15.0
+tzlocal==5.3.1
 urllib3==2.5.0
 yarl==1.20.1
+SpeechRecognition==3.10.4
+pocketsphinx==5.0.3
+pydub==0.25.1

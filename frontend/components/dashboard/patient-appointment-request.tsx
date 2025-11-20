@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Calendar, Clock, User } from "lucide-react"
 import { apiFetch } from "@/lib/api"
-import { toast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 
 interface Doctor {
   id: string
@@ -48,11 +48,7 @@ export function PatientAppointmentRequest() {
       setDoctors(data)
     } catch (error) {
       console.error("Error fetching doctors:", error)
-      toast({
-        title: "Error",
-        description: "Failed to load doctors",
-        variant: "destructive"
-      })
+      toast.error("Failed to load doctors")
     } finally {
       setLoading(false)
     }
@@ -61,11 +57,7 @@ export function PatientAppointmentRequest() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!formData.doctor || !formData.requested_start_date || !formData.requested_end_date) {
-      toast({
-        title: "Error",
-        description: "Please fill in all required fields",
-        variant: "destructive"
-      })
+      toast.error("Please fill in all required fields")
       return
     }
 
@@ -75,11 +67,7 @@ export function PatientAppointmentRequest() {
     const end = new Date(formData.requested_end_date)
 
     if (end < start) {
-      toast({
-        title: "Error",
-        description: "End date must be the same or after start date",
-        variant: "destructive"
-      })
+      toast.error("End date must be the same or after start date")
       return
     }
 
@@ -87,11 +75,7 @@ export function PatientAppointmentRequest() {
     // allow if start is today or later
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
     if (start < today) {
-      toast({
-        title: "Error",
-        description: "Start date cannot be in the past",
-        variant: "destructive"
-      })
+      toast.error("Start date cannot be in the past")
       return
     }
 
@@ -101,10 +85,7 @@ export function PatientAppointmentRequest() {
         method: "POST",
         body: JSON.stringify(formData)
       })
-      toast({
-        title: "Success",
-        description: "Appointment request sent successfully"
-      })
+      toast.success("Appointment request sent successfully")
       // Reset form
       setFormData({
         doctor: "",
@@ -115,11 +96,7 @@ export function PatientAppointmentRequest() {
     } catch (error: any) {
       console.error("Error submitting appointment request:", error)
       const errorMessage = error?.detail?.error || error?.message || "Failed to send appointment request"
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive"
-      })
+      toast.error(errorMessage)
     } finally {
       setSubmitting(false)
     }

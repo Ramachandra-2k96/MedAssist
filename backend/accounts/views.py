@@ -197,13 +197,41 @@ class PatientAudioRecordingsView(APIView):
             DoctorPatient.objects.get(doctor=request.user, patient=patient)
         except (User.DoesNotExist, DoctorPatient.DoesNotExist):
             return Response({'error': 'Patient not found or not associated'}, status=status.HTTP_404_NOT_FOUND)
+        
         data = request.data.copy()
         data['doctor'] = request.user.id
         data['patient'] = patient.id
+        
+        # If transcription not provided, perform backend transcription
+        if not data.get('transcription'):
+            audio_file = request.FILES.get('audio_file')
+            language = data.get('language', 'en')
+            
+            if audio_file:
+                from .transcription_utils import transcribe_audio
+                
+                # Read audio file content
+                audio_blob = audio_file.read()
+                transcription, error = transcribe_audio(audio_blob, language)
+                
+                if transcription:
+                    data['transcription'] = transcription
+                    logger.info(f"Backend transcription successful for language: {language}")
+                else:
+                    # Use error message or default
+                    data['transcription'] = error or "Transcription unavailable"
+                    logger.warning(f"Backend transcription failed: {error}")
+                
+                # Reset file pointer for serializer to upload
+                audio_file.seek(0)
+            else:
+                # No audio file and no transcription
+                data['transcription'] = "No audio provided"
+        
         serializer = AudioRecordingSerializer(data=data)
         if serializer.is_valid():
             recording = serializer.save()
-            # Send SMS with transcription to patient
+            # Send SMS with transcription to patient and extract medications
             try:
                 agent = Agent(
                     model=CerebrasOpenAI(id="gpt-oss-120b", api_key=CEREBRUS_API_KEY),
@@ -226,12 +254,17 @@ class PatientAudioRecordingsView(APIView):
                 print(recording.transcription," : ",run_response.content)
                 medicines = run_response.content.medications
 
-                from accounts.management.commands import seed_prescriptions
-                seed_prescriptions.assign_medication(
-                    patient_id=patient.id,
-                    doctor_id=request.user.id,
-                    medicines_list=[m.dict() if hasattr(m, "dict") else m for m in medicines],
-                )
+                # Only save medications if there are any
+                if medicines:
+                    from accounts.management.commands import seed_prescriptions
+                    seed_prescriptions.assign_medication(
+                        patient_id=patient.id,
+                        doctor_id=request.user.id,
+                        medicines_list=[m.dict() if hasattr(m, "dict") else m for m in medicines],
+                    )
+                    logger.info(f"Saved {len(medicines)} medications for patient {patient.id}")
+                else:
+                    logger.info(f"No medications found in transcription for patient {patient.id}")
                 patient_phone = patient.profile.phone_number
                 if patient_phone and recording.transcription:
                     doctor_name = request.user.profile.name or request.user.username
@@ -535,9 +568,37 @@ class PatientAudioManageView(APIView):
             return Response({'error': 'doctor field required'}, status=status.HTTP_400_BAD_REQUEST)
         if not DoctorPatient.objects.filter(doctor_id=doctor_id, patient=request.user).exists():
             return Response({'error': 'Not linked to doctor'}, status=status.HTTP_403_FORBIDDEN)
+        
         data = request.data.copy()
-        data['patient'] = request.user.id
+        data['patient']=request.user.id
         data['uploaded_by'] = 'patient'
+        
+        # If transcription not provided, perform backend transcription
+        if not data.get('transcription'):
+            audio_file = request.FILES.get('audio_file')
+            language = data.get('language', 'en')
+            
+            if audio_file:
+                from .transcription_utils import transcribe_audio
+                
+                # Read audio file content
+                audio_blob = audio_file.read()
+                transcription, error = transcribe_audio(audio_blob, language)
+                
+                if transcription:
+                    data['transcription'] = transcription
+                    logger.info(f"Backend transcription successful for patient upload, language: {language}")
+                else:
+                    # Use error message or default
+                    data['transcription'] = error or "Transcription unavailable"
+                    logger.warning(f"Backend transcription failed for patient upload: {error}")
+                
+                # Reset file pointer for serializer to upload
+                audio_file.seek(0)
+            else:
+                # No audio file and no transcription
+                data['transcription'] = "No audio provided"
+        
         serializer = AudioRecordingSerializer(data=data)
         if serializer.is_valid():
             serializer.save()

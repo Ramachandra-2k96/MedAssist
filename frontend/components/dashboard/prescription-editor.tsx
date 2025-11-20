@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Pill, Clock, Plus, Trash2, Save, FileText, Calendar, Timer } from "lucide-react"
 import { API_BASE_URL } from "@/lib/config"
 import { apiFetch } from '@/lib/api'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from "sonner"
 
 interface Medicine {
   name: string
@@ -86,7 +86,6 @@ export function PrescriptionEditor({ patientId, patientName, onDelete }: Prescri
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([])
   const [loading, setLoading] = useState(true)
   const [showAddForm, setShowAddForm] = useState(false)
-  const { toast } = useToast()
 
   // New prescription state
   const [medicines, setMedicines] = useState<Medicine[]>([
@@ -154,9 +153,8 @@ export function PrescriptionEditor({ patientId, patientName, onDelete }: Prescri
         method: 'POST',
         body: JSON.stringify({ medicines: validMedicines, notes, duration_days: durationDays })
       })
-      
-      toast({
-        title: "Prescription saved",
+
+      toast.success("Prescription saved", {
         description: "The prescription has been successfully created."
       })
 
@@ -169,9 +167,7 @@ export function PrescriptionEditor({ patientId, patientName, onDelete }: Prescri
       fetchPrescriptions()
     } catch (error: any) {
       console.error('Error saving prescription:', error)
-      toast({
-        variant: "destructive",
-        title: "Save failed",
+      toast.error("Save failed", {
         description: error?.detail ? JSON.stringify(error.detail) : "Could not save prescription."
       })
     } finally {
@@ -186,16 +182,13 @@ export function PrescriptionEditor({ patientId, patientName, onDelete }: Prescri
         body: JSON.stringify({ prescription_id: prescriptionId })
       })
       setPrescriptions(prescriptions.filter(p => p.id !== prescriptionId))
-      toast({
-        title: "Prescription deleted",
+      toast.success("Prescription deleted", {
         description: "The prescription has been successfully deleted."
       })
       if (onDelete) onDelete(prescriptionId)
     } catch (error: any) {
       console.error('Error deleting prescription:', error)
-      toast({
-        variant: "destructive",
-        title: "Delete failed",
+      toast.error("Delete failed", {
         description: error?.detail ? JSON.stringify(error.detail) : "Could not delete prescription."
       })
     }
@@ -272,10 +265,10 @@ export function PrescriptionEditor({ patientId, patientName, onDelete }: Prescri
       })
       // apiFetch should throw for non-2xx but handle gracefully
       console.log('Send SMS response', res)
-      alert('SMS sent to patient (if phone number exists).')
+      toast.success('SMS sent to patient (if phone number exists).')
     } catch (err) {
       console.error('Error sending SMS:', err)
-      alert('Failed to send SMS. Check console for details.')
+      toast.error('Failed to send SMS. Check console for details.')
     }
   }
 

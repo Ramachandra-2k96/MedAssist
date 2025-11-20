@@ -3,6 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Play, Pause, Languages } from "lucide-react"
+import { toast } from "sonner"
 import { useState, useRef } from "react"
 import { Textarea } from "@/components/ui/textarea"
 
@@ -36,10 +37,10 @@ export function DoctorRecordings({ recordings }: DoctorRecordingsProps) {
     if (!current) {
       const a = new Audio(url)
       audioRefs.current[id] = a
-      a.addEventListener('ended', ()=> setPlayingId(null))
-      a.play().then(()=> setPlayingId(id)).catch(e=>console.error(e))
+      a.addEventListener('ended', () => setPlayingId(null))
+      a.play().then(() => setPlayingId(id)).catch(e => toast.error("Playback failed", { description: String(e) }))
     } else {
-      current.play().then(()=> setPlayingId(id)).catch(e=>console.error(e))
+      current.play().then(() => setPlayingId(id)).catch(e => toast.error("Playback failed", { description: String(e) }))
     }
   }
 
@@ -69,7 +70,7 @@ export function DoctorRecordings({ recordings }: DoctorRecordingsProps) {
                   </div>
                 </div>
                 {recording.transcription && (
-                  <Button variant="outline" size="sm" onClick={()=> setShowTranscription(prev=> ({...prev, [recording.id]: !prev[recording.id]}))}>
+                  <Button variant="outline" size="sm" onClick={() => setShowTranscription(prev => ({ ...prev, [recording.id]: !prev[recording.id] }))}>
                     <Languages className="w-4 h-4 mr-1" /> {showTranscription[recording.id] ? 'Hide' : 'Show'}
                   </Button>
                 )}

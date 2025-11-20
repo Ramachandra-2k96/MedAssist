@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Clock, CheckCircle, AlertCircle } from "lucide-react"
 import { API_BASE_URL } from "@/lib/config"
 import { apiFetch } from "@/lib/api"
+import { toast } from "sonner"
 
 interface MedicationLog {
   id: string | number
@@ -33,6 +34,7 @@ export function MedicationTracker() {
       setLogs(data)
     } catch (error) {
       console.error('Error fetching medication logs:', error)
+      toast.error("Failed to load medication logs")
     } finally {
       setLoading(false)
     }
@@ -49,6 +51,7 @@ export function MedicationTracker() {
       fetchLogs()
     } catch (error) {
       console.error('Error marking as taken:', error)
+      toast.error("Failed to mark medication as taken")
     } finally {
       setMarking(null)
     }
@@ -99,13 +102,13 @@ export function MedicationTracker() {
                   <Badge
                     variant={
                       log.status === 'taken' ? 'default' :
-                      log.status === 'missed' ? 'destructive' : 'secondary'
+                        log.status === 'missed' ? 'destructive' : 'secondary'
                     }
                     className="flex items-center gap-1"
                   >
                     {log.status === 'taken' ? <CheckCircle className="h-3 w-3" /> :
-                     log.status === 'missed' ? <AlertCircle className="h-3 w-3" /> :
-                     <Clock className="h-3 w-3" />}
+                      log.status === 'missed' ? <AlertCircle className="h-3 w-3" /> :
+                        <Clock className="h-3 w-3" />}
                     {log.status}
                   </Badge>
                   {log.status === 'pending' && (

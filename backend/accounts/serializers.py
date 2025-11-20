@@ -172,7 +172,8 @@ class AudioRecordingSerializer(FileUploadMixin, serializers.ModelSerializer):
         fields = ('id', 'doctor', 'doctor_name', 'patient', 'title', 'audio_file', 'transcription', 'language', 'recorded_at', 'uploaded_by', 'duration')
         read_only_fields = ('recorded_at',)
         extra_kwargs = {
-            'audio_file': {'required': False}  # Allow file upload, will be set by mixin
+            'audio_file': {'required': False},  # Allow file upload, will be set by mixin
+            'transcription': {'required': False, 'allow_blank': True}  # Optional, backend will transcribe if not provided
         }
     
     def get_file_field_mappings(self):

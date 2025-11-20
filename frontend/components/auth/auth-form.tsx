@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Eye, EyeOff } from "lucide-react"
 import { API_BASE_URL } from "@/lib/config"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 
 type AuthMode = "login" | "doctor-login" | "signup"
 
@@ -18,7 +18,6 @@ interface AuthFormProps {
 
 export const AuthForm: React.FC<AuthFormProps> = ({ mode, onSuccess }) => {
   const isSignup = mode === "signup"
-  const { toast } = useToast()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -31,9 +30,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ mode, onSuccess }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (isSignup && password !== confirmPassword) {
-      toast({
-        variant: "destructive",
-        title: "Passwords do not match",
+      toast.error("Passwords do not match", {
         description: "Please make sure your passwords match.",
       })
       return
@@ -54,23 +51,19 @@ export const AuthForm: React.FC<AuthFormProps> = ({ mode, onSuccess }) => {
           if (typeof data === 'string') {
             errorMessage = data
           } else if (typeof data === 'object') {
-             // Handle DRF error format
-             const errors = Object.values(data).flat().join(', ')
-             if (errors) errorMessage = errors
+            // Handle DRF error format
+            const errors = Object.values(data).flat().join(', ')
+            if (errors) errorMessage = errors
           }
         }
-        
-        toast({
-          variant: "destructive",
-          title: `${isSignup ? "Signup" : "Login"} failed`,
+
+        toast.error(`${isSignup ? "Signup" : "Login"} failed`, {
           description: errorMessage,
         })
         return
       }
       if (mode === "doctor-login" && data?.user?.role !== "doctor") {
-        toast({
-          variant: "destructive",
-          title: "Access Denied",
+        toast.error("Access Denied", {
           description: "This account is not a doctor account.",
         })
         return
@@ -81,19 +74,15 @@ export const AuthForm: React.FC<AuthFormProps> = ({ mode, onSuccess }) => {
       localStorage.setItem("user", JSON.stringify(data.user))
       const hash = btoa(email).replace(/[^a-zA-Z0-9]/g, "").substring(0, 32)
       const redirectPath = mode === "doctor-login" || data.user.role === "doctor" ? `/doctor-dashboard/${hash}` : `/dashboard/${hash}`
-      
-      toast({
-        title: "Success",
+
+      toast.success("Success", {
         description: `Successfully ${isSignup ? "signed up" : "logged in"}!`,
       })
-      
+
       if (onSuccess) onSuccess()
       window.location.href = redirectPath
     } catch (err) {
-      console.error(err)
-      toast({
-        variant: "destructive",
-        title: "Error",
+      toast.error("Error", {
         description: "An unexpected error occurred. Please try again.",
       })
     } finally {

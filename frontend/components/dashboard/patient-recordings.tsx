@@ -6,11 +6,10 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Trash2, Play, Pause, FileAudio, Languages, Volume2, Mic, MicOff } from "lucide-react"
-import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition'
 import { API_BASE_URL } from "@/lib/config"
 import { apiFetch } from '@/lib/api'
 import { buildMediaUrl } from '@/lib/media'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from "sonner"
 
 interface Recording {
   id: number
@@ -43,10 +42,6 @@ export function PatientRecordings({ patientId, patientName }: PatientRecordingsP
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const recordedChunksRef = useRef<Blob[]>([])
   const timerRef = useRef<number | null>(null)
-  const finalTranscriptRef = useRef<string | null>(null)
-
-  const { transcript, listening, resetTranscript, browserSupportsSpeechRecognition } = useSpeechRecognition()
-  const { toast } = useToast()
 
   useEffect(() => {
     if (patientId) {
@@ -55,17 +50,10 @@ export function PatientRecordings({ patientId, patientName }: PatientRecordingsP
   }, [patientId])
 
   useEffect(() => {
-    // keep a live preview of the transcript while listening
-    if (listening && transcript) {
-      finalTranscriptRef.current = transcript
-    }
-  }, [transcript, listening])
-
-  useEffect(() => {
     return () => {
       // cleanup audio objects and object URLs
       Object.values(audioRefs.current).forEach(a => {
-        try { a?.pause() } catch {}
+        try { a?.pause() } catch { }
         if (a?.src?.startsWith('blob:')) URL.revokeObjectURL(a.src)
       })
       if (timerRef.current) window.clearInterval(timerRef.current)
@@ -78,17 +66,13 @@ export function PatientRecordings({ patientId, patientName }: PatientRecordingsP
       setRecordings(data || [])
     } catch (error) {
       console.error('Error fetching recordings:', error)
+      toast.error("Failed to fetch recordings")
     } finally {
       setLoading(false)
     }
   }
 
-  const getSpeechLanguageCode = (lang: string) => {
-    const map: Record<string, string> = {
-      en: 'en-US', kn: 'kn-IN', es: 'es-ES', fr: 'fr-FR', de: 'de-DE', it: 'it-IT', pt: 'pt-BR', hi: 'hi-IN', ar: 'ar-SA', zh: 'zh-CN', ja: 'ja-JP'
-    }
-    return map[lang] || 'en-US'
-  }
+
 
   const formatDuration = (seconds: number) => {
     if (!isFinite(seconds) || isNaN(seconds) || seconds <= 0) return '0:00'
@@ -101,7 +85,7 @@ export function PatientRecordings({ patientId, patientName }: PatientRecordingsP
     return () => {
       // cleanup audio objects and object URLs
       Object.values(audioRefs.current).forEach(a => {
-        try { a?.pause() } catch {}
+        try { a?.pause() } catch { }
         if (a?.src?.startsWith('blob:')) URL.revokeObjectURL(a.src)
       })
       if (timerRef.current) window.clearInterval(timerRef.current)
@@ -111,14 +95,7 @@ export function PatientRecordings({ patientId, patientName }: PatientRecordingsP
     // show language selector first
     if (!showLanguageSelect) return setShowLanguageSelect(true)
 
-    if (!browserSupportsSpeechRecognition) {
-      alert('Speech recognition is not available in this browser.')
-      return
-    }
-
     try {
-      resetTranscript()
-      finalTranscriptRef.current = null
       recordedChunksRef.current = []
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
@@ -131,62 +108,19 @@ export function PatientRecordings({ patientId, patientName }: PatientRecordingsP
 
       mr.onstop = async () => {
         const blob = new Blob(recordedChunksRef.current, { type: 'audio/webm' })
-        const audioUrl = URL.createObjectURL(blob)
 
-        // compute accurate duration using AudioContext if available
-        let durationSeconds: number | null = null
-        try {
-          const arrayBuffer = await blob.arrayBuffer()
-          const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext
-          if (AudioCtx) {
-            const ctx = new AudioCtx()
-            const audioBuffer = await ctx.decodeAudioData(arrayBuffer)
-            durationSeconds = audioBuffer?.duration ?? null
-            ctx.close().catch(() => {})
-          }
-        } catch (e) {
-          // fallback to metadata
-          console.warn('AudioContext decode failed', e)
-        }
-
-        if (durationSeconds === null) {
-          // fallback: try HTMLAudioElement
-          try {
-            const a = new Audio()
-            a.preload = 'metadata'
-            a.src = audioUrl
-            await new Promise<void>((res) => {
-              const onloaded = () => { res() }
-              const onerr = () => { res() }
-              a.addEventListener('loadedmetadata', onloaded, { once: true })
-              a.addEventListener('error', onerr, { once: true })
-            })
-            durationSeconds = a.duration || null
-          } catch (e) {
-            console.warn('audio element duration failed', e)
-            durationSeconds = null
-          }
-        }
-
-        const finalTranscript = (finalTranscriptRef.current && finalTranscriptRef.current.trim()) || (transcript && transcript.trim()) || 'No speech detected during recording.'
-
-        // Upload to backend
-        await uploadRecording(blob, finalTranscript, selectedLanguage, durationSeconds ?? recordingSeconds)
+        // Upload to backend (backend will transcribe)
+        await uploadRecording(blob, selectedLanguage, recordingSeconds)
 
         setRecordingSeconds(0)
-        finalTranscriptRef.current = null
-        resetTranscript()
 
         // stop tracks
-        try { stream.getTracks().forEach(t => t.stop()) } catch {}
+        try { stream.getTracks().forEach(t => t.stop()) } catch { }
       }
 
       mr.start()
       setIsRecording(true)
       setShowLanguageSelect(false)
-
-      // start speech recognition
-      SpeechRecognition.startListening({ continuous: true, language: getSpeechLanguageCode(selectedLanguage) })
 
       timerRef.current = window.setInterval(() => {
         setRecordingSeconds(s => s + 1)
@@ -194,23 +128,26 @@ export function PatientRecordings({ patientId, patientName }: PatientRecordingsP
 
     } catch (err) {
       console.error('startRecording failed', err)
-      alert('Could not start recording. Check microphone permissions.')
+      toast.error('Could not start recording. Check microphone permissions.')
     }
   }
 
-  const uploadRecording = async (blob: Blob, transcription: string, language: string, duration: number) => {
+  const uploadRecording = async (blob: Blob, language: string, duration: number) => {
     setUploading(true)
     try {
-  const formData = new FormData()
-  formData.append('title', `Recording ${new Date().toLocaleTimeString()}`)
-  formData.append('audio_file', blob, 'recording.webm')
-  formData.append('transcription', transcription)
-  formData.append('language', language)
+      const formData = new FormData()
+      formData.append('title', `Recording ${new Date().toLocaleTimeString()}`)
+      formData.append('audio_file', blob, 'recording.webm')
+      // Don't send transcription - backend will handle it
+      formData.append('language', language)
 
-  const data = await apiFetch<Recording>(`/doctor/patients/${patientId}/audio/`, { method: 'POST', body: formData, asForm: true })
-  if (data) setRecordings(prev => [...prev, data])
+      toast.info("Uploading and processing audio...")
+      const data = await apiFetch<Recording>(`/doctor/patients/${patientId}/audio/`, { method: 'POST', body: formData, asForm: true })
+      if (data) setRecordings(prev => [...prev, data])
+      toast.success("Recording uploaded and transcribed successfully")
     } catch (error) {
       console.error('Error uploading recording:', error)
+      toast.error("Failed to upload recording")
     } finally {
       setUploading(false)
     }
@@ -219,16 +156,11 @@ export function PatientRecordings({ patientId, patientName }: PatientRecordingsP
   const stopRecording = () => {
     if (!mediaRecorderRef.current || !isRecording) return
 
-    // stop speech recognition first and snapshot transcript
-    SpeechRecognition.stopListening()
-    finalTranscriptRef.current = (transcript && transcript.trim()) || finalTranscriptRef.current
     setIsRecording(false)
     if (timerRef.current) { window.clearInterval(timerRef.current); timerRef.current = null }
 
-    // give speech recognition a small moment to finalize before stopping the recorder
-    setTimeout(() => {
-      try { mediaRecorderRef.current?.stop() } catch (e) { console.warn(e) }
-    }, 400)
+    // Stop the media recorder
+    try { mediaRecorderRef.current?.stop() } catch (e) { console.warn(e) }
   }
 
   const handlePlayPause = (id: number) => {
@@ -247,8 +179,8 @@ export function PatientRecordings({ patientId, patientName }: PatientRecordingsP
     if (playingId && audioRefs.current[playingId]) audioRefs.current[playingId]?.pause()
 
     // create audio element if needed
-  if (!audioRefs.current[id]) {
-  const a = new Audio(buildMediaUrl(rec.audio_file))
+    if (!audioRefs.current[id]) {
+      const a = new Audio(buildMediaUrl(rec.audio_file))
       audioRefs.current[id] = a
       a.addEventListener('timeupdate', () => {
         const pct = a.duration ? (a.currentTime / a.duration) * 100 : 0
@@ -274,19 +206,14 @@ export function PatientRecordings({ patientId, patientName }: PatientRecordingsP
       const rec = recordings.find(r => r.id === id)
       if (rec && audioRefs.current[id]) {
         audioRefs.current[id]?.pause()
-        try { URL.revokeObjectURL(audioRefs.current[id]!.src) } catch {}
+        try { URL.revokeObjectURL(audioRefs.current[id]!.src) } catch { }
         delete audioRefs.current[id]
       }
       setRecordings(prev => prev.filter(r => r.id !== id))
-      toast({
-        title: "Recording deleted",
-        description: "The audio recording has been successfully deleted."
-      })
+      toast.success("Recording deleted")
     } catch (error: any) {
       console.error('Error deleting recording:', error)
-      toast({
-        variant: "destructive",
-        title: "Delete failed",
+      toast.error("Delete failed", {
         description: error?.detail ? JSON.stringify(error.detail) : "Could not delete recording."
       })
     }
@@ -355,9 +282,8 @@ export function PatientRecordings({ patientId, patientName }: PatientRecordingsP
                 </div>
                 <Button variant="destructive" onClick={stopRecording}><MicOff className="w-4 h-4 mr-2" />Stop</Button>
               </div>
-              <div className="text-xs">
-                {listening ? <span className="italic">Listening…</span> : <span className="text-muted-foreground">Recognition idle</span>}
-                {transcript && <div className="mt-2 text-sm italic">Live: "{transcript}"</div>}
+              <div className="text-xs text-muted-foreground">
+                Recording in progress... Backend will transcribe after upload.
               </div>
             </div>
           )}

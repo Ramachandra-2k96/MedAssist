@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Calendar, Clock, CheckCircle, XCircle, AlertCircle, Plus } from "lucide-react"
 import { apiFetch } from "@/lib/api"
-import { useToast } from "@/components/ui/use-toast"
+import { toast } from "sonner"
 
 interface Appointment {
   id: number
@@ -34,7 +34,6 @@ interface PatientAppointmentsProps {
 }
 
 export function PatientAppointments({ patientId, patientName }: PatientAppointmentsProps) {
-  const { toast } = useToast()
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateForm, setShowCreateForm] = useState(false)
@@ -59,11 +58,7 @@ export function PatientAppointments({ patientId, patientName }: PatientAppointme
       setAppointments(patientAppointments)
     } catch (error) {
       console.error("Error fetching appointments:", error)
-      toast({
-        title: "Error",
-        description: "Failed to load appointments",
-        variant: "destructive"
-      })
+      toast.error("Failed to load appointments")
     } finally {
       setLoading(false)
     }
@@ -72,11 +67,7 @@ export function PatientAppointments({ patientId, patientName }: PatientAppointme
   const handleCreateAppointment = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!formData.booked_date || !formData.booked_time) {
-      toast({
-        title: "Error",
-        description: "Please fill in date and time",
-        variant: "destructive"
-      })
+      toast.error("Please fill in date and time")
       return
     }
 
@@ -90,10 +81,7 @@ export function PatientAppointments({ patientId, patientName }: PatientAppointme
         })
       })
 
-      toast({
-        title: "Success",
-        description: "Appointment created successfully"
-      })
+      toast.success("Appointment created successfully")
 
       // Reset form
       setFormData({
@@ -108,11 +96,7 @@ export function PatientAppointments({ patientId, patientName }: PatientAppointme
       console.log("Error detail:", error?.detail)
       console.log("Error detail.error:", error?.detail?.error)
       const errorMessage = error?.detail?.error || error?.message || "Failed to create appointment"
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive"
-      })
+      toast.error(errorMessage)
     }
   }
 
@@ -128,20 +112,13 @@ export function PatientAppointments({ patientId, patientName }: PatientAppointme
         body: JSON.stringify(updateData)
       })
 
-      toast({
-        title: "Success",
-        description: `Appointment ${status} successfully`
-      })
+      toast.success(`Appointment ${status} successfully`)
 
       fetchAppointments()
     } catch (error: any) {
       console.error("Error updating appointment:", error)
       const errorMessage = error?.detail?.error || error?.message || "Failed to update appointment"
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive"
-      })
+      toast.error(errorMessage)
     } finally {
       setUpdating(null)
     }
@@ -200,7 +177,7 @@ export function PatientAppointments({ patientId, patientName }: PatientAppointme
                     <Input
                       id="booked_date"
                       type="date"
-                       min={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
+                      min={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
                       value={formData.booked_date}
                       onChange={(e) => setFormData(prev => ({ ...prev, booked_date: e.target.value }))}
                       required
@@ -315,17 +292,12 @@ interface AppointmentBookingFormProps {
 }
 
 function AppointmentBookingForm({ appointment, onBook, updating }: AppointmentBookingFormProps) {
-  const { toast } = useToast()
   const [bookedDate, setBookedDate] = useState("")
   const [bookedTime, setBookedTime] = useState("")
 
   const handleBook = () => {
     if (!bookedDate || !bookedTime) {
-      toast({
-        title: "Error",
-        description: "Please select date and time",
-        variant: "destructive"
-      })
+      toast.error("Please select date and time")
       return
     }
 
@@ -335,20 +307,12 @@ function AppointmentBookingForm({ appointment, onBook, updating }: AppointmentBo
     const endDate = appointment.requested_end_date ? new Date(appointment.requested_end_date) : null
 
     if (startDate && selectedDate < startDate) {
-      toast({
-        title: "Error",
-        description: "Selected date must be on or after the requested start date",
-        variant: "destructive"
-      })
+      toast.error("Selected date must be on or after the requested start date")
       return
     }
 
     if (endDate && selectedDate > endDate) {
-      toast({
-        title: "Error",
-        description: "Selected date must be on or before the requested end date",
-        variant: "destructive"
-      })
+      toast.error("Selected date must be on or before the requested end date")
       return
     }
 

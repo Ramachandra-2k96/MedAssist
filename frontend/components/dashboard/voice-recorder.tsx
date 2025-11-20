@@ -4,6 +4,7 @@ import { useState, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Mic, MicOff, Play, Square } from "lucide-react"
+import { toast } from "sonner"
 
 interface VoiceRecorderProps {
   onRecordingComplete: (audioBlob: Blob) => void
@@ -40,6 +41,7 @@ export function VoiceRecorder({ onRecordingComplete }: VoiceRecorderProps) {
       setIsRecording(true)
     } catch (error) {
       console.error("Error starting recording:", error)
+      toast.error("Error starting recording")
     }
   }
 

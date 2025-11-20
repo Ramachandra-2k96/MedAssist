@@ -9,6 +9,7 @@ import { useAudioRecorder } from '@/hooks/use-audio-recorder'
 import { Send, Mic, MicOff, Bot, User } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { toast } from "sonner"
 
 interface Message {
   id: string
@@ -71,6 +72,7 @@ export function AIChat() {
       setMessages(prev => [...prev, aiMessage])
     } catch (e: any) {
       console.error('AI chat failed', e)
+      toast.error("AI chat failed")
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         text: e.status === 401 || e.status === 403
@@ -121,9 +123,8 @@ export function AIChat() {
         {messages.map((message) => (
           <div
             key={message.id}
-            className={`flex items-start gap-2 sm:gap-3 ${
-              message.sender === 'user' ? 'justify-end' : 'justify-start'
-            }`}
+            className={`flex items-start gap-2 sm:gap-3 ${message.sender === 'user' ? 'justify-end' : 'justify-start'
+              }`}
           >
             {message.sender === 'ai' && (
               <div className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
@@ -131,11 +132,10 @@ export function AIChat() {
               </div>
             )}
             <div
-              className={`max-w-[85%] sm:max-w-[70%] rounded-2xl px-3 py-2 sm:px-4 sm:py-2 ${
-                message.sender === 'user'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border'
-              }`}
+              className={`max-w-[85%] sm:max-w-[70%] rounded-2xl px-3 py-2 sm:px-4 sm:py-2 ${message.sender === 'user'
+                ? 'bg-blue-500 text-white'
+                : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border'
+                }`}
             >
               {message.sender === 'ai' ? (
                 <div className="text-sm sm:text-base leading-relaxed break-words prose prose-sm max-w-none dark:prose-invert">
@@ -190,9 +190,8 @@ export function AIChat() {
               onClick={() => isRecording ? stop() : start()}
               variant="ghost"
               size="sm"
-              className={`absolute right-2 top-1/2 transform -translate-y-1/2 rounded-full w-6 h-6 sm:w-8 sm:h-8 p-0 ${
-                isRecording ? 'text-red-500 hover:text-red-600' : 'text-gray-500 hover:text-gray-600'
-              }`}
+              className={`absolute right-2 top-1/2 transform -translate-y-1/2 rounded-full w-6 h-6 sm:w-8 sm:h-8 p-0 ${isRecording ? 'text-red-500 hover:text-red-600' : 'text-gray-500 hover:text-gray-600'
+                }`}
               disabled={loading}
             >
               {isRecording ? <MicOff className="w-3 h-3 sm:w-4 sm:h-4" /> : <Mic className="w-3 h-3 sm:w-4 sm:h-4" />}

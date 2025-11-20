@@ -8,9 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { API_BASE_URL } from '@/lib/config'
 import { buildMediaUrl } from '@/lib/media'
 import { apiFetch } from '@/lib/api'
-import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition'
 import { Mic, MicOff, FileAudio, Play, Pause, Languages, Trash2, Upload } from 'lucide-react'
-import { useToast } from '@/components/ui/use-toast'
+import { toast } from "sonner"
 
 interface Recording {
   id: number
@@ -40,17 +39,13 @@ export function PatientAudioSection({ doctorId }: { doctorId: number | null }) {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const recordedChunksRef = useRef<Blob[]>([])
   const timerRef = useRef<number | null>(null)
-  const finalTranscriptRef = useRef<string | null>(null)
-  const { toast } = useToast()
-
-  const { transcript, listening, resetTranscript, browserSupportsSpeechRecognition } = useSpeechRecognition()
 
   // sync prop -> internal
-  useEffect(()=> { if (doctorId !== null) setEffectiveDoctorId(doctorId) }, [doctorId])
+  useEffect(() => { if (doctorId !== null) setEffectiveDoctorId(doctorId) }, [doctorId])
   // if no doctor provided (dedicated page) fetch list and auto pick first
-  useEffect(()=> { if (doctorId === null) { (async()=> { try { const data = await apiFetch('/patient/doctors/'); if(data.length) setEffectiveDoctorId(data[0].id); } catch(e){ console.error(e)} })(); } }, [doctorId])
+  useEffect(() => { if (doctorId === null) { (async () => { try { const data = await apiFetch('/patient/doctors/'); if (data.length) setEffectiveDoctorId(data[0].id); } catch (e) { console.error(e) } })(); } }, [doctorId])
 
-  useEffect(()=>{ fetchRecordings() }, [effectiveDoctorId])
+  useEffect(() => { fetchRecordings() }, [effectiveDoctorId])
 
   const fetchRecordings = async () => {
     try {
@@ -58,93 +53,89 @@ export function PatientAudioSection({ doctorId }: { doctorId: number | null }) {
       if (effectiveDoctorId) url.searchParams.set('doctor_id', String(effectiveDoctorId))
       const data = await apiFetch(url.pathname + url.search)
       setRecordings(data)
-    } catch(e){ 
-      console.error(e); 
-      toast({ title:'Failed to load recordings', description:String(e), variant:'destructive' as any }) 
-    } finally { 
-      setLoading(false) 
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to load recordings', { description: String(e) })
+    } finally {
+      setLoading(false)
     }
   }
 
-  const langCode = (l:string) => ({ en:'en-US', kn:'kn-IN', es:'es-ES', fr:'fr-FR', de:'de-DE', hi:'hi-IN', zh:'zh-CN', ja:'ja-JP' }[l]||'en-US')
-  const fmt = (s:number)=>{ if(!s||!isFinite(s)) return '0:00'; const m=Math.floor(s/60); const sec=Math.floor(s%60); return `${m}:${sec.toString().padStart(2,'0')}` }
+
+  const fmt = (s: number) => { if (!s || !isFinite(s)) return '0:00'; const m = Math.floor(s / 60); const sec = Math.floor(s % 60); return `${m}:${sec.toString().padStart(2, '0')}` }
 
   const startRecording = async () => {
-  if (!effectiveDoctorId) return toast({ title:'Select a doctor', description:'Please choose a doctor first.', variant:'destructive' as any })
+    if (!effectiveDoctorId) return toast.error('Select a doctor', { description: 'Please choose a doctor first.' })
     if (!showLanguageSelect) return setShowLanguageSelect(true)
-    if (!browserSupportsSpeechRecognition) return alert('Speech recognition not supported in this browser')
     try {
-      resetTranscript(); finalTranscriptRef.current=null; recordedChunksRef.current=[]
-      const stream = await navigator.mediaDevices.getUserMedia({ audio:true })
+      recordedChunksRef.current = []
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       const mr = new MediaRecorder(stream); mediaRecorderRef.current = mr
-      mr.ondataavailable = ev=> { if(ev.data && ev.data.size) recordedChunksRef.current.push(ev.data) }
+      mr.ondataavailable = ev => { if (ev.data && ev.data.size) recordedChunksRef.current.push(ev.data) }
       mr.onstop = async () => {
-        const blob = new Blob(recordedChunksRef.current, { type:'audio/webm' })
-        const finalTx = (finalTranscriptRef.current && finalTranscriptRef.current.trim()) || (transcript && transcript.trim()) || 'No speech detected.'
-        await uploadBlob(blob, finalTx)
-        try { stream.getTracks().forEach(t=>t.stop()) } catch {}
+        const blob = new Blob(recordedChunksRef.current, { type: 'audio/webm' })
+        await uploadBlob(blob)
+        try { stream.getTracks().forEach(t => t.stop()) } catch { }
         setRecordingSeconds(0)
       }
       mr.start(); setIsRecording(true); setShowLanguageSelect(false)
-      SpeechRecognition.startListening({ continuous:true, language: langCode(selectedLanguage) })
-      timerRef.current = window.setInterval(()=> setRecordingSeconds(s=>s+1), 1000)
-  } catch(err){ console.error(err); toast({ title:'Could not start recording', description:'Check microphone permissions.', variant:'destructive' as any }) }
+      timerRef.current = window.setInterval(() => setRecordingSeconds(s => s + 1), 1000)
+    } catch (err) { console.error(err); toast.error('Could not start recording', { description: 'Check microphone permissions.' }) }
   }
 
   const stopRecording = () => {
-    if(!isRecording) return
-    SpeechRecognition.stopListening()
-    finalTranscriptRef.current = transcript || finalTranscriptRef.current
+    if (!isRecording) return
     setIsRecording(false)
-    if (timerRef.current) { window.clearInterval(timerRef.current); timerRef.current=null }
-    setTimeout(()=>{ try { mediaRecorderRef.current?.stop() } catch(e){ console.warn(e)} }, 300)
+    if (timerRef.current) { window.clearInterval(timerRef.current); timerRef.current = null }
+    try { mediaRecorderRef.current?.stop() } catch (e) { console.warn(e) }
   }
 
-  const uploadBlob = async (blob: Blob, transcription: string) => {
+  const uploadBlob = async (blob: Blob) => {
     setUploading(true)
     try {
       const fd = new FormData()
       fd.append('doctor', String(effectiveDoctorId))
       fd.append('title', `Recording ${new Date().toLocaleTimeString()}`)
       fd.append('audio_file', blob, 'recording.webm')
-      fd.append('transcription', transcription)
+      // Don't send transcription - backend will handle it
       fd.append('language', selectedLanguage)
-      await apiFetch('/patient/audio/', { method:'POST', body: fd, asForm: true })
+      toast.info("Uploading and processing audio...")
+      await apiFetch('/patient/audio/', { method: 'POST', body: fd, asForm: true })
       await fetchRecordings()
-      toast({ title:'Recording uploaded' })
-    } catch(e){ 
-      console.error(e); 
-      toast({ title:'Upload failed', description:String(e), variant:'destructive' as any }) 
-    } finally { 
-      setUploading(false) 
+      toast.success('Recording uploaded and transcribed successfully')
+    } catch (e) {
+      console.error(e);
+      toast.error('Upload failed', { description: String(e) })
+    } finally {
+      setUploading(false)
     }
   }
 
   // Removed manual file upload per requirement
 
-  const togglePlay = (id:number, url:string) => {
+  const togglePlay = (id: number, url: string) => {
     if (!url) return
     const current = audioRefs.current[id]
     if (playId === id && current) { current.pause(); setPlayId(null); return }
     if (!current) {
       const a = new Audio(buildMediaUrl(url))
       audioRefs.current[id] = a
-      a.addEventListener('timeupdate', ()=> { const pct = a.duration? (a.currentTime/a.duration)*100:0; setPlayProgress(p=>({...p,[id]:pct})) })
-      a.addEventListener('ended', ()=> setPlayId(null))
-      a.play().then(()=> setPlayId(id)).catch(e=>console.error(e))
+      a.addEventListener('timeupdate', () => { const pct = a.duration ? (a.currentTime / a.duration) * 100 : 0; setPlayProgress(p => ({ ...p, [id]: pct })) })
+      a.addEventListener('ended', () => setPlayId(null))
+      a.play().then(() => setPlayId(id)).catch(e => console.error(e))
     } else {
-      current.play().then(()=> setPlayId(id)).catch(e=>console.error(e))
+      current.play().then(() => setPlayId(id)).catch(e => console.error(e))
     }
   }
 
-  const deleteRecording = async (id:number) => {
+  const deleteRecording = async (id: number) => {
     try {
-      await apiFetch('/patient/audio/', { method:'DELETE', body: JSON.stringify({ recording_id: id }) })
-      setRecordings(prev=> prev.filter(r=> r.id!==id))
-      toast({ title:'Recording deleted' })
-    } catch(e){ 
-      console.error(e); 
-      toast({ title:'Delete failed', description:String(e), variant:'destructive' as any }) 
+      await apiFetch('/patient/audio/', { method: 'DELETE', body: JSON.stringify({ recording_id: id }) })
+      setRecordings(prev => prev.filter(r => r.id !== id))
+      toast.success('Recording deleted')
+    } catch (e) {
+      console.error(e);
+      toast.error('Delete failed', { description: String(e) })
     }
   }
 
@@ -158,7 +149,7 @@ export function PatientAudioSection({ doctorId }: { doctorId: number | null }) {
         <div className="space-y-4">
           <h3 className="font-semibold">Record New Audio</h3>
           {!isRecording && (
-            <Button onClick={()=> setShowLanguageSelect(true)} disabled={!effectiveDoctorId} className="w-full">
+            <Button onClick={() => setShowLanguageSelect(true)} disabled={!effectiveDoctorId} className="w-full">
               <Mic className="w-4 h-4 mr-2" /> Record (Language: {selectedLanguage.toUpperCase()})
             </Button>
           )}
@@ -182,7 +173,7 @@ export function PatientAudioSection({ doctorId }: { doctorId: number | null }) {
               </div>
               <div className="flex gap-2">
                 <Button onClick={startRecording} className="flex-1"><Mic className="w-4 h-4 mr-2" />Start</Button>
-                <Button variant="outline" onClick={()=> setShowLanguageSelect(false)}>Cancel</Button>
+                <Button variant="outline" onClick={() => setShowLanguageSelect(false)}>Cancel</Button>
               </div>
             </div>
           )}
@@ -198,9 +189,8 @@ export function PatientAudioSection({ doctorId }: { doctorId: number | null }) {
                 </div>
                 <Button variant="destructive" onClick={stopRecording}><MicOff className="w-4 h-4 mr-2" />Stop</Button>
               </div>
-              <div className="text-xs">
-                {listening ? <span className="italic">Listening…</span> : <span className="text-muted-foreground">Processing…</span>}
-                {transcript && <div className="mt-2 text-sm italic">Live: "{transcript}"</div>}
+              <div className="text-xs text-muted-foreground">
+                Recording in progress... Backend will transcribe after upload.
               </div>
             </div>
           )}
@@ -215,25 +205,25 @@ export function PatientAudioSection({ doctorId }: { doctorId: number | null }) {
                 <div key={r.id} className="border rounded-lg p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <Button size="sm" variant="outline" onClick={()=> togglePlay(r.id, r.audio_file)}>
-                        {playId===r.id? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                      <Button size="sm" variant="outline" onClick={() => togglePlay(r.id, r.audio_file)}>
+                        {playId === r.id ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                       </Button>
                       <div>
                         <p className="font-medium">{r.title}</p>
-                        <p className="text-xs text-muted-foreground">{new Date(r.recorded_at).toLocaleString()} • {r.uploaded_by==='patient'? 'You' : (r.doctor_name? 'Dr. '+r.doctor_name : 'Doctor')}</p>
+                        <p className="text-xs text-muted-foreground">{new Date(r.recorded_at).toLocaleString()} • {r.uploaded_by === 'patient' ? 'You' : (r.doctor_name ? 'Dr. ' + r.doctor_name : 'Doctor')}</p>
                         <div className="h-1 bg-muted rounded mt-1 w-40 overflow-hidden">
-                          <div className="h-full bg-primary" style={{ width: `${playProgress[r.id]||0}%` }} />
+                          <div className="h-full bg-primary" style={{ width: `${playProgress[r.id] || 0}%` }} />
                         </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
                       {r.transcription && (
-                        <Button variant="outline" size="sm" onClick={()=> setShowTx(p=> ({...p, [r.id]: !p[r.id]}))}>
-                          <Languages className="w-4 h-4 mr-1" /> {showTx[r.id]? 'Hide':'Show'}
+                        <Button variant="outline" size="sm" onClick={() => setShowTx(p => ({ ...p, [r.id]: !p[r.id] }))}>
+                          <Languages className="w-4 h-4 mr-1" /> {showTx[r.id] ? 'Hide' : 'Show'}
                         </Button>
                       )}
-                      {r.uploaded_by==='patient' && (
-                        <Button variant="destructive" size="sm" onClick={()=> deleteRecording(r.id)}>
+                      {r.uploaded_by === 'patient' && (
+                        <Button variant="destructive" size="sm" onClick={() => deleteRecording(r.id)}>
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       )}

@@ -5,8 +5,9 @@ import { PatientAppointmentRequest } from '@/components/dashboard/patient-appoin
 import { Button } from '@/components/ui/button'
 import { apiFetch } from '@/lib/api'
 import Protected from '@/components/auth/Protected'
+import { toast } from "sonner"
 
-export default function UserDashboard(){
+export default function UserDashboard() {
   return (<Protected><DashboardContent /></Protected>)
 }
 
@@ -28,20 +29,26 @@ const DashboardContent = () => {
 
   const fetchDoctors = async () => {
     try {
-      const data:any[] = await apiFetch('/patient/doctors/') as any
-      setLinkedDoctors(data||[])
+      const data: any[] = await apiFetch('/patient/doctors/') as any
+      setLinkedDoctors(data || [])
       if (!selectedDoctorId && data && data.length) setSelectedDoctorId(data[0].id)
-    } catch(e){ console.error(e) }
+    } catch (e) {
+      console.error(e)
+      toast.error("Failed to fetch doctors")
+    }
   }
 
   const fetchMedicationLogs = async () => {
     try {
       const data: any[] = await apiFetch('/patient/medication-logs/') as any
       setHasPendingDoses(data.some(log => log.status === 'pending'))
-    } catch(e){ console.error(e) }
+    } catch (e) {
+      console.error(e)
+      toast.error("Failed to fetch medication logs")
+    }
   }
 
-    const markAllTaken = async () => {
+  const markAllTaken = async () => {
     try {
       const logs: any[] = await apiFetch('/patient/medication-logs/') as any
       const pendingLogs = logs.filter(log => log.status === 'pending')
@@ -49,13 +56,17 @@ const DashboardContent = () => {
         await apiFetch('/patient/medication-logs/', { method: 'POST', body: JSON.stringify({ log_id: log.id }) })
       }
       fetchMedicationLogs()  // Refresh
-    } catch(e){ console.error(e) }
+      toast.success("All medicines marked as taken")
+    } catch (e) {
+      console.error(e)
+      toast.error("Failed to mark medicines as taken")
+    }
   }
 
   const fetchDashboard = async () => {
     try {
-      const qs = selectedDoctorId? `?doctor_id=${selectedDoctorId}`:''
-      const data:any = await apiFetch(`/patient/dashboard/${qs}`)
+      const qs = selectedDoctorId ? `?doctor_id=${selectedDoctorId}` : ''
+      const data: any = await apiFetch(`/patient/dashboard/${qs}`)
       if (data) {
         // prescriptions -> transform into medicine schedule (flatten medicines with timing if present)
         const medList: any[] = []
@@ -85,6 +96,7 @@ const DashboardContent = () => {
       }
     } catch (e) {
       console.error('dashboard fetch error', e)
+      toast.error("Failed to load dashboard data")
     } finally {
       setLoading(false)
     }
@@ -92,20 +104,20 @@ const DashboardContent = () => {
 
   return (
     <div className="flex flex-1 flex-col gap-6">
-        <div className="flex flex-wrap gap-2 mb-2">
-          {linkedDoctors.map(d => (
-            <Button key={d.id} size="sm" variant={selectedDoctorId===d.id? 'default':'outline'} onClick={()=> setSelectedDoctorId(d.id)}>
-              {d.name || 'Doctor'}
-            </Button>
-          ))}
-          {linkedDoctors.length>0 && (
-            <Button size="sm" variant={!selectedDoctorId? 'default':'outline'} onClick={()=> setSelectedDoctorId(null)}>All</Button>
-          )}
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <MedicineSchedule medicines={medicines} hasPendingDoses={hasPendingDoses} onMarkTaken={markAllTaken} />
-          <PatientAppointmentRequest />
-        </div>
+      <div className="flex flex-wrap gap-2 mb-2">
+        {linkedDoctors.map(d => (
+          <Button key={d.id} size="sm" variant={selectedDoctorId === d.id ? 'default' : 'outline'} onClick={() => setSelectedDoctorId(d.id)}>
+            {d.name || 'Doctor'}
+          </Button>
+        ))}
+        {linkedDoctors.length > 0 && (
+          <Button size="sm" variant={!selectedDoctorId ? 'default' : 'outline'} onClick={() => setSelectedDoctorId(null)}>All</Button>
+        )}
       </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <MedicineSchedule medicines={medicines} hasPendingDoses={hasPendingDoses} onMarkTaken={markAllTaken} />
+        <PatientAppointmentRequest />
+      </div>
+    </div>
   );
 };

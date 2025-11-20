@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { toast } from "sonner"
+
 import { API_BASE_URL } from '@/lib/config';
 import { ArrowLeft, Mail, KeyRound, Lock } from 'lucide-react';
 
@@ -21,13 +22,10 @@ export default function ForgotPasswordPage() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-
   const handleRequestOTP = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
+    // setError('');
+    // setSuccess('');
     setLoading(true);
 
     try {
@@ -42,16 +40,16 @@ export default function ForgotPasswordPage() {
       const data = await response.json();
 
       if (response.ok) {
-        setSuccess(data.message || 'OTP sent to your email');
+        toast.success(data.message || 'OTP sent to your email');
         setTimeout(() => {
           setStep('otp');
-          setSuccess('');
+          // setSuccess('');
         }, 2000);
       } else {
-        setError(data.error || 'Failed to send OTP');
+        toast.error(data.error || 'Failed to send OTP');
       }
     } catch (err) {
-      setError('Network error. Please try again.');
+      toast.error('Network error. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -59,8 +57,8 @@ export default function ForgotPasswordPage() {
 
   const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
+    // setError('');
+    // setSuccess('');
     setLoading(true);
 
     try {
@@ -75,16 +73,16 @@ export default function ForgotPasswordPage() {
       const data = await response.json();
 
       if (response.ok) {
-        setSuccess(data.message || 'OTP verified successfully');
+        toast.success(data.message || 'OTP verified successfully');
         setTimeout(() => {
           setStep('password');
-          setSuccess('');
+          // setSuccess('');
         }, 1500);
       } else {
-        setError(data.error || 'Invalid OTP');
+        toast.error(data.error || 'Invalid OTP');
       }
     } catch (err) {
-      setError('Network error. Please try again.');
+      toast.error('Network error. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -92,16 +90,16 @@ export default function ForgotPasswordPage() {
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
+    // setError('');
+    // setSuccess('');
 
     if (newPassword !== confirmPassword) {
-      setError('Passwords do not match');
+      toast.error('Passwords do not match');
       return;
     }
 
     if (newPassword.length < 8) {
-      setError('Password must be at least 8 characters long');
+      toast.error('Password must be at least 8 characters long');
       return;
     }
 
@@ -119,55 +117,37 @@ export default function ForgotPasswordPage() {
       const data = await response.json();
 
       if (response.ok) {
-        setSuccess(data.message || 'Password reset successfully');
+        toast.success(data.message || 'Password reset successfully');
         setTimeout(() => {
           router.push('/login');
         }, 2000);
       } else {
-        setError(data.error || 'Failed to reset password');
+        toast.error(data.error || 'Failed to reset password');
       }
     } catch (err) {
-      setError('Network error. Please try again.');
+      toast.error('Network error. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4">
+    <div className="container mx-auto flex h-screen w-full flex-col items-center justify-center">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <div className="flex items-center gap-2 mb-2">
-            <Link href="/login">
-              <Button variant="ghost" size="sm" className="gap-2">
-                <ArrowLeft className="h-4 w-4" />
-                Back to Login
-              </Button>
-            </Link>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => router.back()}>
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <CardTitle>Reset Password</CardTitle>
           </div>
-          <CardTitle className="text-2xl">Reset Password</CardTitle>
           <CardDescription>
             {step === 'email' && 'Enter your email to receive an OTP'}
             {step === 'otp' && 'Enter the OTP sent to your email'}
-            {step === 'password' && 'Create your new password'}
+            {step === 'password' && 'Create a new password'}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {error && (
-            <Alert variant="destructive" className="mb-4">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-
-          {success && (
-            <Alert className="mb-4 border-green-500 bg-green-50 dark:bg-green-950">
-              <AlertDescription className="text-green-800 dark:text-green-200">
-                {success}
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* Step 1: Email Input */}
           {step === 'email' && (
             <form onSubmit={handleRequestOTP} className="space-y-4">
               <div className="space-y-2">
@@ -192,7 +172,6 @@ export default function ForgotPasswordPage() {
             </form>
           )}
 
-          {/* Step 2: OTP Verification */}
           {step === 'otp' && (
             <form onSubmit={handleVerifyOTP} className="space-y-4">
               <div className="space-y-2">
@@ -232,7 +211,6 @@ export default function ForgotPasswordPage() {
             </form>
           )}
 
-          {/* Step 3: New Password */}
           {step === 'password' && (
             <form onSubmit={handleResetPassword} className="space-y-4">
               <div className="space-y-2">

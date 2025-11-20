@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Calendar, Clock, CheckCircle, XCircle, AlertCircle, User } from "lucide-react"
 import { apiFetch } from "@/lib/api"
-import { toast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 
 interface Appointment {
   id: number
@@ -42,11 +42,7 @@ export function DoctorAppointmentRequests() {
       setAppointments(data)
     } catch (error) {
       console.error("Error fetching appointments:", error)
-      toast({
-        title: "Error",
-        description: "Failed to load appointments",
-        variant: "destructive"
-      })
+      toast.error("Failed to load appointments")
     } finally {
       setLoading(false)
     }
@@ -68,20 +64,13 @@ export function DoctorAppointmentRequests() {
         body: JSON.stringify(updateData)
       })
 
-      toast({
-        title: "Success",
-        description: `Appointment ${status} successfully`
-      })
+      toast.success(`Appointment ${status} successfully`)
 
       fetchAppointments()
     } catch (error: any) {
       console.error("Error updating appointment:", error)
       const errorMessage = error?.detail?.error || error?.message || "Failed to update appointment"
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive"
-      })
+      toast.error(errorMessage)
     }
   }
 
@@ -203,11 +192,7 @@ function AppointmentBookingForm({ appointment, onBook, bookedSlots }: Appointmen
 
   const handleBook = () => {
     if (!bookedDate || !bookedTime) {
-      toast({
-        title: "Error",
-        description: "Please select date and time",
-        variant: "destructive"
-      })
+      toast.error("Please select date and time")
       return
     }
 
@@ -215,11 +200,7 @@ function AppointmentBookingForm({ appointment, onBook, bookedSlots }: Appointmen
     const now = new Date()
     const selectedDateTime = new Date(`${bookedDate}T${bookedTime}`)
     if (selectedDateTime < now) {
-      toast({
-        title: "Error",
-        description: "Selected date/time cannot be in the past",
-        variant: "destructive"
-      })
+      toast.error("Selected date/time cannot be in the past")
       return
     }
 
@@ -229,31 +210,19 @@ function AppointmentBookingForm({ appointment, onBook, bookedSlots }: Appointmen
     const endDate = appointment.requested_end_date ? new Date(appointment.requested_end_date) : null
 
     if (startDate && selectedDate < startDate) {
-      toast({
-        title: "Error",
-        description: "Selected date must be on or after the requested start date",
-        variant: "destructive"
-      })
+      toast.error("Selected date must be on or after the requested start date")
       return
     }
 
     if (endDate && selectedDate > endDate) {
-      toast({
-        title: "Error",
-        description: "Selected date must be on or before the requested end date",
-        variant: "destructive"
-      })
+      toast.error("Selected date must be on or before the requested end date")
       return
     }
 
     // Check whether the slot is already taken
     const slotKey = `${bookedDate} ${bookedTime}`
     if (bookedSlots.includes(slotKey)) {
-      toast({
-        title: "Error",
-        description: "Selected slot is already booked. Choose another time or date.",
-        variant: "destructive"
-      })
+      toast.error("Selected slot is already booked. Choose another time or date.")
       return
     }
 
