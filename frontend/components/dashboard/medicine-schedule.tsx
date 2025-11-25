@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Pill, Clock } from "lucide-react"
+import { getMedicationIconStyle } from "@/lib/medication-utils"
 
 interface Medicine {
   name: string
@@ -43,7 +44,9 @@ export function MedicineSchedule({ medicines, hasPendingDoses = false, onMarkTak
           {medicines.map((medicine, index) => (
             <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
               <div className="flex items-center gap-3">
-                <div className="text-2xl">{medicine.emoji}</div>
+                <div style={getMedicationIconStyle(medicine.name)} className="text-2xl flex items-center justify-center">
+                  {medicine.emoji}
+                </div>
                 <div>
                   <h3 className="font-semibold">{medicine.name}</h3>
                   <p className="text-sm text-muted-foreground">{medicine.dosage}</p>

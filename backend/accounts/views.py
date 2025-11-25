@@ -229,6 +229,7 @@ class PatientAudioRecordingsView(APIView):
                 data['transcription'] = "No audio provided"
         
         serializer = AudioRecordingSerializer(data=data)
+
         if serializer.is_valid():
             recording = serializer.save()
             # Send SMS with transcription to patient and extract medications
@@ -237,6 +238,7 @@ class PatientAudioRecordingsView(APIView):
                     model=CerebrasOpenAI(id="gpt-oss-120b", api_key=CEREBRUS_API_KEY),
                     output_schema=MedicationList,  # This enforces JSON structure
                     instructions="""
+                    
                     You are a medical transcription analyzer. Extract medication information from doctor-patient conversation transcripts.
                     
                     For each medication mentioned:
@@ -248,6 +250,7 @@ class PatientAudioRecordingsView(APIView):
                     - you might see the spelling mistake or miswritten things,you need to correct it and fill all fields.
                     - once you see the full context you will get to know what medication is suitable for the patient.Use your intuation only when the transcription is not clear
                     Return ALL medications found in the conversation.
+
                     """
                 )
                 run_response = agent.run(recording.transcription, user_id=str(request.user.id))

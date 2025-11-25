@@ -12,6 +12,7 @@ import { Pill, Clock, Plus, Trash2, Save, FileText, Calendar, Timer } from "luci
 import { API_BASE_URL } from "@/lib/config"
 import { apiFetch } from '@/lib/api'
 import { toast } from "sonner"
+import { getMedicationIconStyle } from "@/lib/medication-utils"
 
 interface Medicine {
   name: string
@@ -37,7 +38,7 @@ interface PrescriptionEditorProps {
   onDelete?: (prescriptionId: number) => void
 }
 
-const medicineEmojis = ["💊", "🧴", "💉", "🩹", "🌡️", "🩺", "🧬", "🩸"]
+const medicineEmojis = ["💊", "🧴", "💉", "🩹", "🩸", "🧪"]
 const medicineColors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7", "#DDA0DD", "#98D8C8", "#F7DC6F"]
 
 const frequencyOptions = [
@@ -194,21 +195,44 @@ export function PrescriptionEditor({ patientId, patientName, onDelete }: Prescri
     }
   }
 
+  // Helper function to generate color for medication (for printing)
+  const getMedicineColor = (medicineName: string): string => {
+    let hash = 0
+    for (let i = 0; i < medicineName.length; i++) {
+      hash = medicineName.charCodeAt(i) + ((hash << 5) - hash)
+      hash = hash & hash
+    }
+    const hue = Math.abs(hash % 360)
+    const saturation = 65 + (Math.abs(hash % 20))
+    const lightness = 45 + (Math.abs(hash % 15))
+    return `hsl(${hue}, ${saturation}%, ${lightness}%)`
+  }
+
   // Create a printable HTML and open print dialog
   const handlePrintPrescriptions = () => {
     try {
       const printable = prescriptions.map(p => {
-        const medsHtml = (p.medicines || []).map((m: Medicine) => `
+        const medsHtml = (p.medicines || []).map((m: Medicine) => {
+          const bgColor = getMedicineColor(m.name)
+          return `
           <tr>
-            <td style="padding:8px;border:1px solid #ddd">${m.emoji || '💊'} ${m.name}</td>
+            <td style="padding:8px;border:1px solid #ddd">
+              <div style="display:inline-flex;align-items:center;gap:8px">
+                <div style="background-color:${bgColor};width:40px;height:40px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:20px">
+                  ${m.emoji || '💊'}
+                </div>
+                <span>${m.name}</span>
+              </div>
+            </td>
             <td style="padding:8px;border:1px solid #ddd">${m.dosage || ''}</td>
             <td style="padding:8px;border:1px solid #ddd">${m.frequency || ''}</td>
             <td style="padding:8px;border:1px solid #ddd">${m.duration || ''}</td>
           </tr>
-        `).join('')
+        `
+        }).join('')
 
         return `
-          <div style="margin-bottom:24px">
+          <div style="margin-bottom:24px;page-break-inside:avoid">
             <h3 style="margin:0 0 8px 0">Prescription - ${new Date(p.created_at).toLocaleString()}</h3>
             <table style="border-collapse:collapse;width:100%;font-family:Arial,Helvetica,sans-serif"> 
               <thead>
@@ -233,6 +257,11 @@ export function PrescriptionEditor({ patientId, patientName, onDelete }: Prescri
           <head>
             <title>Prescriptions - ${patientName}</title>
             <meta name="viewport" content="width=device-width,initial-scale=1" />
+            <style>
+              @media print {
+                body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+              }
+            </style>
           </head>
           <body style="padding:16px;">
             <h1>Prescriptions for ${patientName}</h1>
@@ -331,7 +360,9 @@ export function PrescriptionEditor({ patientId, patientName, onDelete }: Prescri
                       {prescription.medicines.map((medicine, idx) => (
                         <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                           <div className="flex items-center gap-3">
-                            <div className="text-2xl">{medicine.emoji || "💊"}</div>
+                            <div style={getMedicationIconStyle(medicine.name)} className="text-2xl flex items-center justify-center">
+                              {medicine.emoji || "💊"}
+                            </div>
                             <div>
                               <h4 className="font-semibold">{medicine.name}</h4>
                               <p className="text-sm text-muted-foreground">{medicine.dosage}</p>
@@ -372,7 +403,26 @@ export function PrescriptionEditor({ patientId, patientName, onDelete }: Prescri
               <div className="space-y-4">
                 {medicines.map((medicine, index) => (
                   <div key={index} className="flex items-center gap-4 p-4 border rounded-lg bg-white dark:bg-gray-800">
-                    <div className="text-2xl">{medicine.emoji}</div>
+                    <div className="flex flex-col items-center gap-2">
+                      <div style={getMedicationIconStyle(medicine.name || `medicine-${index}`)} className="text-2xl flex items-center justify-center">
+                        {medicine.emoji}
+                      </div>
+                      <Select
+                        value={medicine.emoji}
+                        onValueChange={(value) => updateMedicine(index, "emoji", value)}
+                      >
+                        <SelectTrigger className="h-8 w-16">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {medicineEmojis.map((emoji) => (
+                            <SelectItem key={emoji} value={emoji}>
+                              <span className="text-xl">{emoji}</span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-3 flex-1">
                       <div>
                         <Label htmlFor={`name-${index}`} className="text-xs">Medicine Name</Label>

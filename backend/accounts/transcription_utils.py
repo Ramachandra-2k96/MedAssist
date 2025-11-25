@@ -1,4 +1,5 @@
 import speech_recognition as sr
+
 import logging
 import tempfile
 import os
@@ -30,6 +31,7 @@ def get_sphinx_language_code(lang: str) -> str:
         'ar': 'en-US',  # Arabic not supported in sphinx, fallback to English
         'ja': 'en-US',  # Japanese not supported in sphinx, fallback to English
     }
+
     return sphinx_map.get(lang, 'en-US')
 
 

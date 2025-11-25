@@ -8,6 +8,7 @@ import { Clock, CheckCircle, AlertCircle } from "lucide-react"
 import { API_BASE_URL } from "@/lib/config"
 import { apiFetch } from "@/lib/api"
 import { toast } from "sonner"
+import { getMedicationIconStyle } from "@/lib/medication-utils"
 
 interface MedicationLog {
   id: string | number
@@ -89,7 +90,9 @@ export function MedicationTracker() {
             {logs.map((log) => (
               <div key={log.id} className="flex items-center justify-between p-4 border rounded-lg">
                 <div className="flex items-center gap-3">
-                  <div className="text-2xl">💊</div>
+                  <div style={getMedicationIconStyle(log.medicine_name)} className="text-2xl flex items-center justify-center">
+                    💊
+                  </div>
                   <div>
                     <h4 className="font-semibold">{log.medicine_name}</h4>
                     <p className="text-sm text-muted-foreground">{log.prescription_title}</p>
